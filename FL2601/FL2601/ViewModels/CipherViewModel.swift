@@ -139,7 +139,10 @@ final class CipherViewModel {
             let output: String
             switch mode {
             case .encrypt:
-                output = try await engine.encrypt(inputText, password: password)
+                // The engine returns the payload; the envelope is added here
+                // because it is presentation, not format.
+                let payload = try await engine.encrypt(inputText, password: password)
+                output = MessageArmor.wrap(payload)
             case .decrypt:
                 output = try await engine.decrypt(inputText, password: password)
             }

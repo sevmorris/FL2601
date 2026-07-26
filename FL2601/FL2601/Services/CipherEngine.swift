@@ -128,9 +128,13 @@ actor CipherEngine {
     }
 
     func decrypt(_ ciphertext: String, password: String) throws -> String {
+        // Accept either an armored block or bare base64. The envelope is only a
+        // hint about where the payload starts; nothing in it is trusted, and
+        // input without one is passed through untouched.
+        //
         // Browsers' atob() ignores ASCII whitespace, so base64 wrapped by an
         // email client still pastes cleanly. Match that leniency.
-        let cleaned = ciphertext.filter { !$0.isWhitespace }
+        let cleaned = MessageArmor.unwrap(ciphertext).filter { !$0.isWhitespace }
 
         guard let blob = Data(base64Encoded: cleaned),
               blob.count >= CipherFormat.minimumPayloadLength

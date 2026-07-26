@@ -14,6 +14,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 ENGINE_SRC="$ROOT_DIR/FL2601/FL2601/Services/CipherEngine.swift"
+ARMOR_SRC="$ROOT_DIR/FL2601/FL2601/Services/MessageArmor.swift"
 REFERENCE="$SCRIPT_DIR/reference-impl.mjs"
 
 WORK_DIR="$(mktemp -d)"
@@ -48,7 +49,7 @@ do {
 SWIFT
 
 echo "Compiling CipherEngine..."
-swiftc -O "$ENGINE_SRC" "$WORK_DIR/main.swift" -o "$WORK_DIR/engine" || exit 1
+swiftc -O "$ARMOR_SRC" "$ENGINE_SRC" "$WORK_DIR/main.swift" -o "$WORK_DIR/engine" || exit 1
 
 E="$WORK_DIR/engine"
 JS=(node "$REFERENCE")

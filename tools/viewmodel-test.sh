@@ -85,9 +85,24 @@ func run() async {
     await vm.process()
     check("status ok", vm.status == .ok("Encryption successful."), "got \(vm.status)")
     check("result shown", vm.showResult)
-    check("result is non-empty base64", Data(base64Encoded: vm.result) != nil && !vm.result.isEmpty)
     check("not left processing", !vm.isProcessing)
     let ciphertext = vm.result
+
+    print("\n== Armored output ==")
+    check("opens with the begin marker", ciphertext.hasPrefix(MessageArmor.beginMarker))
+    check("closes with the end marker", ciphertext.hasSuffix(MessageArmor.endMarker))
+    check("names the tool", ciphertext.contains("Encrypted with FL2601 Cipher Tool"))
+    check("carries a link", ciphertext.contains("github.com/sevmorris/FL2601"))
+    let payload = MessageArmor.unwrap(ciphertext)
+    check("payload is valid base64", Data(base64Encoded: payload) != nil && !payload.isEmpty)
+    check("payload is the raw format, not the envelope", !payload.contains("-----"))
+    // Every line of the block must survive a mail client that balks at long lines.
+    let longest = ciphertext.split(whereSeparator: \.isNewline).map(\.count).max() ?? 0
+    check("no line exceeds 64 characters", longest <= 64, "longest was \(longest)")
+
+    print("\n== Armor is a display convention, not the format ==")
+    check("unwrap of bare base64 is a no-op", MessageArmor.unwrap(payload) == payload)
+    check("wrap then unwrap round-trips", MessageArmor.unwrap(MessageArmor.wrap(payload)) == payload)
 
     print("\n== Mode switch ==")
     vm.mode = .decrypt
@@ -106,6 +121,17 @@ func run() async {
     await vm.process()
     check("status ok", vm.status == .ok("Decryption successful."), "got \(vm.status)")
     check("round-trips the plaintext", vm.result == "Attack at dawn — 🌅", "got \(vm.result)")
+
+    // Anything encrypted before the envelope existed is bare base64 and must
+    // keep opening.
+    vm.inputText = payload
+    await vm.process()
+    check("bare base64 still decrypts", vm.result == "Attack at dawn — 🌅", "got \(vm.result)")
+
+    // A block that has been forwarded, indented, or partially reflowed.
+    vm.inputText = "  \n" + ciphertext.replacingOccurrences(of: "\n", with: "\n  ") + "\n\n"
+    await vm.process()
+    check("indented block still decrypts", vm.result == "Attack at dawn — 🌅", "got \(vm.result)")
 
     print("\n== Wrong password ==")
     vm.password = "wrong"
@@ -146,6 +172,7 @@ SWIFT
 
 echo "Compiling CipherEngine + CipherViewModel..."
 swiftc -O \
+    "$SRC/Services/MessageArmor.swift" \
     "$SRC/Services/CipherEngine.swift" \
     "$SRC/ViewModels/CipherViewModel.swift" \
     "$WORK_DIR/main.swift" \

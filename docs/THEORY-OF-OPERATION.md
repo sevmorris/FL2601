@@ -143,6 +143,37 @@ thing to encrypt, and the length check uses `>=` rather than `>` so that a
 zero-length ciphertext is accepted. An earlier revision used `>` and rejected
 its own output for the empty string. The differential test suite covers it now.
 
+### The armor around it
+
+What the app puts on the clipboard is the base64 inside a labelled envelope:
+
+```
+-----BEGIN FL2601 MESSAGE-----
+Comment: Encrypted with FL2601 Cipher Tool
+Comment: https://github.com/sevmorris/FL2601
+
+RkwyNgEBAAknwJX5kSpGJS54IxUA7LVlb3ulUNz2+hmlKMKOoc2R8MwKuvL6K596
+xSZPuCR0Ri1MyqOmw/nzm1TAeyZWjlkb/6KnTZkRUpFmVoc=
+-----END FL2601 MESSAGE-----
+```
+
+**This is presentation, not format.** The bytes between the markers are exactly
+what the section above describes; deleting the surrounding lines leaves a
+payload any build can read. Decryption accepts the whole block or the bare
+base64 interchangeably, so messages written before the envelope existed keep
+working.
+
+The distinction matters for more than tidiness. The header *inside* the payload
+is covered by the GCM tag and cannot be altered undetected. These lines are
+not, and nothing in them is ever trusted — they are read only as a hint about
+where the base64 begins and ends. A message claiming in its comment to be
+something it is not changes nothing about how it is decrypted.
+
+The envelope exists because base64 is anonymous. Every payload happens to start
+with `Rkwy` — that is `FL26` encoded — but nobody reads base64 prefixes. A
+recipient who has never heard of this tool should be able to tell what they are
+holding and where to get something that opens it.
+
 ---
 
 ## 6. Why the format describes itself

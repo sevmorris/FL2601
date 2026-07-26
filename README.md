@@ -32,13 +32,28 @@ To build it yourself instead, see [Building](#building) below.
 ## Using it
 
 **To encrypt:** enter a passphrase, confirm it in the second field, type or
-paste your message, and press *Encrypt Text*. Copy the base64 result and send
-it however you like.
+paste your message, and press *Encrypt Text*. Copy the result and send it
+however you like. It comes wrapped in a labelled block, so a recipient who has
+never heard of this tool can tell what they are holding:
+
+```
+-----BEGIN FL2601 MESSAGE-----
+Comment: Encrypted with FL2601 Cipher Tool
+Comment: https://github.com/sevmorris/FL2601
+
+RkwyNgEBAAknwJX5kSpGJS54IxUA7LVlb3ulUNz2+hmlKMKOoc2R8MwKuvL6K596
+xSZPuCR0Ri1MyqOmw/nzm1TAeyZWjlkb/6KnTZkRUpFmVoc=
+-----END FL2601 MESSAGE-----
+```
+
+The wrapper is presentation only — the payload between the markers is the
+message, and deleting the surrounding lines leaves something any build can
+read.
 
 **To decrypt:** switch to the *Decrypt* tab, enter the passphrase, paste the
-base64, and press *Decrypt Text*. The confirmation field disappears here — a
-mistyped passphrase simply fails to decrypt, so there is nothing for a second
-field to catch.
+message, and press *Decrypt Text*. Paste the whole block or just the base64 —
+both work. The confirmation field disappears here: a mistyped passphrase simply
+fails to decrypt, so there is nothing for a second field to catch.
 
 | Shortcut | Action |
 | --- | --- |
@@ -46,8 +61,8 @@ field to catch.
 | <kbd>⇧</kbd><kbd>⌘</kbd><kbd>C</kbd> | Copy the result |
 | <kbd>⌘</kbd><kbd>⌫</kbd> | Clear everything |
 
-Base64 pasted back in may contain line breaks or stray whitespace — from an
-email client that wrapped it, for example. That is handled.
+Text pasted back in may carry line breaks, indentation, or stray whitespace —
+from an email client that wrapped or quoted it, for example. That is handled.
 
 **There is no passphrase recovery.** The passphrase is never stored anywhere,
 by design. If you lose it, the message is gone. That is the point of the tool,
