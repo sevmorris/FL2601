@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FL2601 — Cipher Tool</title>
+  <style>
+    :root {
+      --green: #33ff33;
+      --green-hi: #99ff99;
+      --green-lo: #1a6b1a;
+      --bg: #0a0a0a;
+      --panel-bg: #111;
+      --border: #222;
+      --text: #ccc;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 800px;
+      width: 100%;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      padding: 2rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    h1 {
+      color: var(--green);
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      border-bottom: 1px solid var(--green-lo);
+      padding-bottom: 0.5rem;
+    }
+
+    .field {
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      display: block;
+      color: var(--green-lo);
+      font-size: 0.8rem;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+    }
+
+    input[type="password"],
+    input[type="text"],
+    textarea {
+      width: 100%;
+      background: #000;
+      border: 1px solid var(--border);
+      color: var(--green-hi);
+      padding: 0.75rem;
+      font-family: inherit;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, textarea:focus {
+      border-color: var(--green-lo);
+    }
+
+    textarea {
+      height: 200px;
+      resize: vertical;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+
+    button {
+      background: var(--green-lo);
+      color: #000;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-family: inherit;
+      font-weight: bold;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green-lo);
+    }
+
+    button:disabled {
+      background: #222;
+      color: #444;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: transparent;
+      border: 1px solid var(--green-lo);
+      color: var(--green-lo);
+    }
+
+    button.secondary:hover:not(:disabled) {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    #output-area {
+      margin-top: 2rem;
+      display: none;
+    }
+
+    .output-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    #result-text {
+      background: #050505;
+      border: 1px solid var(--green-lo);
+      color: var(--green);
+      padding: 1rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-size: 0.9rem;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .status {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      min-height: 1.2em;
+    }
+
+    .status.error { color: #ff4444; }
+    .status.ok { color: var(--green); }
+
+    .instructions {
+      margin-top: 3rem;
+      font-size: 0.8rem;
+      color: #666;
+      line-height: 1.5;
+    }
+
+    .instructions code {
+      color: #999;
+      background: #1a1a1a;
+      padding: 0 4px;
+    }
+
+    .tab-nav {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .tab {
+      cursor: pointer;
+      padding-bottom: 0.25rem;
+      border-bottom: 2px solid transparent;
+      color: #555;
+    }
+
+    .tab.active {
+      color: var(--green);
+      border-bottom-color: var(--green);
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>FL2601 — Cipher Tool</h1>
+
+    <div class="field">
+      <label for="pass">Access Password</label>
+      <input type="password" id="pass" placeholder="Enter password...">
+    </div>
+
+    <div class="tab-nav">
+      <div class="tab active" onclick="setMode('encrypt')">Encrypt</div>
+      <div class="tab" onclick="setMode('decrypt')">Decrypt</div>
+    </div>
+
+    <div class="field">
+      <label id="input-label" for="input-text">Plaintext Letter</label>
+      <textarea id="input-text" placeholder="Type or paste text here..."></textarea>
+    </div>
+
+    <div class="buttons">
+      <button id="btn-action" onclick="process()">Encrypt Text</button>
+      <button class="secondary" onclick="clearAll()">Clear</button>
+    </div>
+
+    <div id="output-area">
+      <div class="output-header">
+        <label>Result</label>
+        <button class="secondary" style="padding: 0.25rem 0.75rem; font-size: 0.7rem;" onclick="copyResult()">Copy to Clipboard</button>
+      </div>
+      <div id="result-text"></div>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <div class="instructions">
+      <p>This tool uses PBKDF2 for key derivation (100,000 iterations, SHA-256) and AES-256-GCM for encryption.</p>
+    </div>
+  </div>
+
+  <script>
+    let mode = 'encrypt';
+    let lastResult = '';
+
+    function setMode(m) {
+      mode = m;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      document.getElementById('input-label').textContent = mode === 'encrypt' ? 'Plaintext Letter' : 'Ciphertext (Base64)';
+      document.getElementById('btn-action').textContent = mode === 'encrypt' ? 'Encrypt Text' : 'Decrypt Text';
+      document.getElementById('input-text').placeholder = mode === 'encrypt' ? 'Type or paste text here...' : 'Paste base64 ciphertext here...';
+      
+      // Hide output when switching modes to avoid confusion
+      document.getElementById('output-area').style.display = 'none';
+      setStatus('');
+    }
+
+    function setStatus(msg, type = '') {
+      const s = document.getElementById('status');
+      s.textContent = msg;
+      s.className = 'status ' + type;
+    }
+
+    function clearAll() {
+      document.getElementById('pass').value = '';
+      document.getElementById('input-text').value = '';
+      document.getElementById('output-area').style.display = 'none';
+      setStatus('');
+      lastResult = '';
+    }
+
+    async function process() {
+      const pass = document.getElementById('pass').value;
+      const text = document.getElementById('input-text').value;
+      
+      if (!pass) return setStatus('Password required.', 'error');
+      if (!text) return setStatus('Input text required.', 'error');
+
+      setStatus('Processing...');
+      
+      try {
+        if (mode === 'encrypt') {
+          lastResult = await encrypt(text, pass);
+        } else {
+          lastResult = await decrypt(text, pass);
+        }
+        
+        document.getElementById('result-text').textContent = lastResult;
+        document.getElementById('output-area').style.display = 'block';
+        setStatus(mode === 'encrypt' ? 'Encryption successful.' : 'Decryption successful.', 'ok');
+      } catch (e) {
+        setStatus(e.message, 'error');
+        document.getElementById('output-area').style.display = 'none';
+      }
+    }
+
+    async function encrypt(plaintext, password) {
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const iv   = crypto.getRandomValues(new Uint8Array(12));
+
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']
+      );
+      const key = await crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt']
+      );
+
+      const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(plaintext));
+      const blob = new Uint8Array(16 + 12 + ct.byteLength);
+      blob.set(salt, 0);
+      blob.set(iv,   16);
+      blob.set(new Uint8Array(ct), 28);
+
+      return btoa(String.fromCharCode(...blob));
+    }
+
+    async function decrypt(ciphertext, password) {
+      try {
+        const blob = Uint8Array.from(atob(ciphertext), c => c.charCodeAt(0));
+        const salt = blob.slice(0, 16);
+        const iv   = blob.slice(16, 28);
+        const ct   = blob.slice(28);
+
+        const keyMaterial = await crypto.subtle.importKey(
+          'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']
+        );
+        const key = await crypto.subtle.deriveKey(
+          { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+          keyMaterial,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['decrypt']
+        );
+
+        const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+        return new TextDecoder().decode(pt);
+      } catch (e) {
+        throw new Error('Decryption failed. Check password and ciphertext.');
+      }
+    }
+
+    function copyResult() {
+      navigator.clipboard.writeText(lastResult);
+      const btn = event.target;
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = original, 2000);
+    }
+  </script>
+
+</body>
+</html>

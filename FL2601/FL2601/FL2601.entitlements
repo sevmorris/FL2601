@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Deliberately minimal. The app derives keys and encrypts entirely in memory.
+	  No network entitlement is granted, so the sandbox prevents this app from
+	  making any outbound connection even if it were compromised. No file access
+	  is requested either; text moves in and out via the clipboard, which needs
+	  no entitlement.
+	-->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+</dict>
+</plist>
