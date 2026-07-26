@@ -60,6 +60,10 @@ current floor for SHA-256, about 70 ms per operation on Apple silicon).
 Encryption is AES-256-GCM, which authenticates as well as encrypts: a modified
 message fails to decrypt rather than decrypting to garbage.
 
+For the full design — the threat model, why the format describes itself, and
+the ordering constraint that makes the iteration bound necessary — see
+**[Theory of Operation](docs/THEORY-OF-OPERATION.md)**.
+
 A version 1 payload is base64 over:
 
 ```
