@@ -60,84 +60,34 @@ current floor for SHA-256, about 70 ms per operation on Apple silicon).
 Encryption is AES-256-GCM, which authenticates as well as encrypts: a modified
 message fails to decrypt rather than decrypting to garbage.
 
-For the full design — the threat model, why the format describes itself, and
-the ordering constraint that makes the iteration bound necessary — see
-**[Theory of Operation](docs/THEORY-OF-OPERATION.md)**.
+The payload is versioned and self-describing: the key derivation parameters
+travel with each message rather than living in a constant in the source, so the
+work factor can be raised in a future release without stranding messages
+encrypted today.
 
-A version 1 payload is base64 over:
+**[Theory of Operation](docs/THEORY-OF-OPERATION.md)** documents the
+[byte layout](docs/THEORY-OF-OPERATION.md#5-the-payload), the
+[threat model](docs/THEORY-OF-OPERATION.md#8-threat-model), and the reasoning
+behind both.
 
-```
-offset  size  field
-     0     4  magic "FL26"
-     4     1  format version
-     5     1  KDF identifier (1 = PBKDF2-HMAC-SHA256)
-     6     4  KDF iterations, big-endian uint32
-    10    16  salt
-    26    12  AES-GCM nonce
-    38     n  ciphertext
-38 + n    16  AES-GCM authentication tag
-```
-
-The payload is **self-describing**: the iteration count travels with each
-message rather than living in a constant in the source. A decryptor reads how
-the key was derived instead of assuming, so the work factor can be raised in a
-future release without stranding messages encrypted today — they keep
-declaring their own count, and keep opening. Adding a memory-hard KDF later
-means allocating a new identifier for byte 5, with existing messages
-unaffected.
-
-Three details worth knowing if you are auditing this:
-
-- **The header is authenticated.** Bytes `0..<10` are passed to AES-GCM as
-  additional authenticated data, so the version and iteration count are
-  covered by the tag and cannot be altered without detection. The salt needs
-  no explicit binding — it determines the key, so changing it fails
-  authentication on its own.
-- **Iteration counts are bounded before use.** A parsed count outside
-  10,000–10,000,000 is rejected *before* key derivation runs. Derivation
-  necessarily happens before the tag can be checked, so without that bound a
-  hostile payload could ask the app to grind on four billion rounds.
-- **Wrong passphrase and tampered message fail identically.** GCM
-  authentication cannot distinguish them, and guessing would only mislead.
-
-Derived key bytes are zeroed after use. The passphrase itself cannot be wiped —
-Swift's `String` offers no way to reach its storage — so that is a partial
-measure, not a guarantee.
-
-## Building
+## Building and verifying
 
 Requires Xcode 26 or later.
 
 ```bash
-./build.sh              # Release build, signed, verified
-./build.sh --install    # ...and copy to /Applications
-./build.sh --debug      # Ad-hoc signed Debug build, for fast iteration
+./build.sh          # Release build, signed and verified
+./build.sh --debug  # Ad-hoc signed, no Developer ID certificate needed
 ```
-
-`build.sh` reports the signing authority, confirms the hardened runtime and
-sandbox made it into the binary, and fails the build if the debug
-`get-task-allow` entitlement is present, since Apple rejects notarization when
-it is.
-
-Signing uses a Developer ID certificate. Without one, `--debug` still produces
-a runnable app.
-
-## Tests
 
 ```bash
 ./tools/differential-test.sh   # Format and crypto (requires node)
-./tools/viewmodel-test.sh      # Encrypt/decrypt flows, validation, clipboard
+./tools/viewmodel-test.sh      # App logic
 ```
 
-Both compile the app's real sources rather than copies, so they fail if the
-shipping code drifts.
-
-`differential-test.sh` cross-checks `Services/CipherEngine.swift` against
-`tools/reference-impl.mjs`, a second implementation of the same format written
-against WebCrypto instead of CryptoKit. Two independent crypto libraries
-agreeing on every byte is much stronger evidence than one implementation
-agreeing with itself — it is how a payload-length off-by-one was caught during
-development.
+Both suites compile the app's real sources rather than copies, so they fail if
+the shipping code drifts. The differential suite cross-checks the engine
+against an independent WebCrypto implementation of the same format —
+[why that matters](docs/THEORY-OF-OPERATION.md#9-how-the-app-is-put-together).
 
 ## License
 
