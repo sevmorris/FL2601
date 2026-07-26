@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// Direct translation of the `:root` custom properties in `cypher.html`.
-/// This app is deliberately dark-only — the phosphor-terminal look is the
-/// design, not a color scheme, so there is no light variant.
+/// The app's palette. Deliberately dark-only — the phosphor-terminal look is
+/// the design, not a color scheme, so there is no light variant.
 enum Theme {
     static let green = Color(hex: 0x33FF33)
     static let greenHi = Color(hex: 0x99FF99)

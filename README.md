@@ -135,51 +135,6 @@ agreeing on every byte is much stronger evidence than one implementation
 agreeing with itself — it is how a payload-length off-by-one was caught during
 development.
 
-## Releasing
-
-For maintainers. Store notarization credentials once:
-
-```bash
-xcrun notarytool store-credentials "FL2601" --apple-id "YOUR_APPLE_ID" --team-id "YOUR_TEAM_ID"
-```
-
-This prompts for an app-specific password, created at
-[account.apple.com](https://account.apple.com) under *Sign-In and Security →
-App-Specific Passwords*. It is not your Apple ID password.
-
-Then:
-
-```bash
-./distribute.sh              # build, package DMG, notarize, staple
-./distribute.sh --no-notary  # package only
-```
-
-Set `APPLE_ID`, `TEAM_ID`, or `NOTARY_PROFILE` in the environment to override
-the defaults.
-
-## Project layout
-
-```
-FL2601/                     Xcode project
-  FL2601/
-    FL2601App.swift         App entry point (single window)
-    Services/
-      CipherEngine.swift    Format definition, PBKDF2 + AES-GCM
-    ViewModels/
-      CipherViewModel.swift Observable UI state
-    Views/                  Layout, components, palette
-  make-icon.swift           Regenerates the app icon set
-tools/                      Test suites and the reference implementation
-build.sh                    Build, sign, verify
-notarize.sh                 Submit to Apple and staple
-distribute.sh               Build → DMG → notarize → staple
-cypher.html                 Earlier browser prototype (see below)
-```
-
-`cypher.html` is the browser prototype this app grew out of. It is kept for
-reference only and is **not** interoperable — the app uses a different,
-versioned payload format and will reject anything the prototype produced.
-
 ## License
 
 [GPL-3.0](LICENSE). If you distribute a modified version, you must publish
