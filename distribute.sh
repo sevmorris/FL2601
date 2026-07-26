@@ -40,6 +40,16 @@ VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" \
 mkdir -p "$DIST_DIR"
 DMG_PATH="$DIST_DIR/FL2601-Cipher-Tool-$VERSION.dmg"
 
+if [ "$NOTARIZE" = true ]; then
+    echo
+    echo "=== Notarizing the app ==="
+    # Staple the app *before* it goes into the image. Stapling only the DMG
+    # leaves the copy the user drags to /Applications without a ticket, which
+    # forces Gatekeeper to check with Apple over the network on first launch
+    # and fails when that machine is offline.
+    "$SCRIPT_DIR/notarize.sh" "$APP_PATH"
+fi
+
 echo
 echo "=== Packaging DMG ==="
 STAGING=$(mktemp -d)
@@ -62,8 +72,8 @@ codesign --verify --verbose=2 "$DMG_PATH"
 
 if [ "$NOTARIZE" = true ]; then
     echo
-    echo "=== Notarizing ==="
-    # Notarize the DMG; stapling the image covers the app inside it.
+    echo "=== Notarizing the disk image ==="
+    # Second submission: the image itself, so the download is stapled too.
     "$SCRIPT_DIR/notarize.sh" "$DMG_PATH"
 else
     echo
