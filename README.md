@@ -1,4 +1,15 @@
 # FL2601 Cipher Tool
+### Passphrase Text Encryption for macOS
+
+<p align="center">
+  <strong>PBKDF2 + AES-256-GCM, entirely offline</strong>
+  <br />
+  <strong>Version:</strong> 1.1
+  <br />
+  <a href="https://github.com/sevmorris/FL2601/releases/latest/download/FL2601-Cipher-Tool-1.1.dmg"><strong>Download Latest (DMG)</strong></a>
+  ·
+  <a href="https://sevmorris.github.io/FL2601/">Theory of Operation</a>
+</p>
 
 A small macOS app that encrypts text with a passphrase. Paste in a message,
 enter a passphrase, and get back a block of base64 you can send over any
@@ -80,9 +91,9 @@ travel with each message rather than living in a constant in the source, so the
 work factor can be raised in a future release without stranding messages
 encrypted today.
 
-**[Theory of Operation](docs/THEORY-OF-OPERATION.md)** documents the
-[byte layout](docs/THEORY-OF-OPERATION.md#5-the-payload), the
-[threat model](docs/THEORY-OF-OPERATION.md#8-threat-model), and the reasoning
+**[Theory of Operation](https://sevmorris.github.io/FL2601/)** documents the
+[byte layout](https://sevmorris.github.io/FL2601/#payload), the
+[threat model](https://sevmorris.github.io/FL2601/#threat), and the reasoning
 behind both.
 
 ## Building and verifying
@@ -102,7 +113,7 @@ Requires Xcode 26 or later.
 Both suites compile the app's real sources rather than copies, so they fail if
 the shipping code drifts. The differential suite cross-checks the engine
 against an independent WebCrypto implementation of the same format —
-[why that matters](docs/THEORY-OF-OPERATION.md#9-how-the-app-is-put-together).
+[why that matters](https://sevmorris.github.io/FL2601/#architecture).
 
 ## License
 

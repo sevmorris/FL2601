@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FL2601 &mdash; Theory of Operation</title>
+<meta name="description" content="How FL2601 Cipher Tool turns a passphrase and a message into base64 and back - the payload format, the threat model, and the reasoning behind both.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>&#x1F510;</text></svg>">
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --ground:      #F4F6F2;
+    --surface:     #FFFFFF;
+    --surface-alt: #EAEEE6;
+    --rule:        #D3DBCE;
+    --rule-strong: #A9B8A4;
+    --ink:         #171D16;
+    --ink-mid:     #4A5548;
+    --ink-dim:     #6C7869;
+    --accent:      #0F7A1B;
+    --accent-soft: #DCEEDA;
+    --accent-line: #6FA96F;
+    --warn:        #A33417;
+    --warn-soft:   #F7E4DE;
+
+    --measure: 68ch;
+    --step--1: 0.8125rem;
+    --step-0:  1.0625rem;
+    --step-1:  1.25rem;
+    --step-2:  1.5rem;
+    --step-3:  2rem;
+    --step-4:  2.75rem;
+
+    --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:      #0A0C0A;
+      --surface:     #11150F;
+      --surface-alt: #161B14;
+      --rule:        #1E2A1E;
+      --rule-strong: #2E4030;
+      --ink:         #C9D2C6;
+      --ink-mid:     #97A394;
+      --ink-dim:     #77836F;
+      --accent:      #33FF33;
+      --accent-soft: #12220F;
+      --accent-line: #1A6B1A;
+      --warn:        #FF6B4A;
+      --warn-soft:   #241310;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #0A0C0A;
+    --surface:     #11150F;
+    --surface-alt: #161B14;
+    --rule:        #1E2A1E;
+    --rule-strong: #2E4030;
+    --ink:         #C9D2C6;
+    --ink-mid:     #97A394;
+    --ink-dim:     #77836F;
+    --accent:      #33FF33;
+    --accent-soft: #12220F;
+    --accent-line: #1A6B1A;
+    --warn:        #FF6B4A;
+    --warn-soft:   #241310;
+  }
+
+  :root[data-theme="light"] {
+    --ground:      #F4F6F2;
+    --surface:     #FFFFFF;
+    --surface-alt: #EAEEE6;
+    --rule:        #D3DBCE;
+    --rule-strong: #A9B8A4;
+    --ink:         #171D16;
+    --ink-mid:     #4A5548;
+    --ink-dim:     #6C7869;
+    --accent:      #0F7A1B;
+    --accent-soft: #DCEEDA;
+    --accent-line: #6FA96F;
+    --warn:        #A33417;
+    --warn-soft:   #F7E4DE;
+  }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: var(--step-0);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 clamp(1.25rem, 4vw, 3rem) 6rem;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: clamp(3rem, 8vw, 6rem) 0 2.5rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0;
+  }
+
+  .masthead h1 {
+    font-size: clamp(2.25rem, 6vw, var(--step-4));
+    line-height: 1.08;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    max-width: var(--measure);
+    font-size: var(--step-1);
+    line-height: 1.55;
+    color: var(--ink-mid);
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  .masthead-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.75rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--ink-dim);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .masthead-meta a { color: var(--ink-mid); }
+
+  /* ---------- shell ---------- */
+
+  .shell {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    padding-top: 3rem;
+  }
+
+  @media (min-width: 1040px) {
+    .shell {
+      grid-template-columns: 13rem minmax(0, 1fr);
+      gap: 4rem;
+    }
+  }
+
+  .index { display: none; }
+
+  @media (min-width: 1040px) {
+    .index {
+      display: block;
+      position: sticky;
+      top: 2rem;
+      align-self: start;
+      max-height: calc(100vh - 4rem);
+      overflow-y: auto;
+    }
+  }
+
+  .index h2 {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-weight: 400;
+    margin: 0 0 1rem;
+  }
+
+  .index ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    counter-reset: idx;
+  }
+
+  .index a {
+    display: grid;
+    grid-template-columns: 1.75rem 1fr;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    line-height: 1.35;
+    color: var(--ink-mid);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    padding-left: 0.6rem;
+  }
+
+  .index a::before {
+    counter-increment: idx;
+    content: counter(idx);
+    color: var(--ink-dim);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .index a:hover,
+  .index a:focus-visible {
+    color: var(--accent);
+    border-left-color: var(--accent-line);
+  }
+
+  /* ---------- prose ---------- */
+
+  .prose > * { max-width: var(--measure); }
+
+  section {
+    padding-block: 0 3.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  section > * { margin: 0; }
+
+  h2.section-head {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    gap: 1rem;
+    font-size: var(--step-2);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    margin-top: 1rem;
+    padding-top: 1.75rem;
+    border-top: 1px solid var(--rule);
+    max-width: none;
+    text-wrap: balance;
+  }
+
+  h2.section-head .num {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    font-weight: 400;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  h3 {
+    font-size: var(--step-1);
+    font-weight: 600;
+    line-height: 1.3;
+    margin-top: 1rem;
+    text-wrap: balance;
+  }
+
+  p { text-wrap: pretty; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 0.15em; }
+
+  strong { font-weight: 600; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.875em;
+    background: var(--surface-alt);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 0.08em 0.32em;
+  }
+
+  ul.plain {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  ul.plain > li {
+    display: grid;
+    grid-template-columns: 1.1rem 1fr;
+    gap: 0.75rem;
+  }
+
+  ul.plain > li::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-top: 0.55em;
+    border: 1px solid var(--accent-line);
+    background: var(--accent-soft);
+  }
+
+  /* ---------- figures ---------- */
+
+  figure {
+    margin: 0.75rem 0;
+    max-width: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  figcaption {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    line-height: 1.5;
+    color: var(--ink-dim);
+    max-width: var(--measure);
+  }
+
+  .scroller {
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+
+  /* ---------- pipeline ---------- */
+
+  .pipeline {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    min-width: 46rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+  }
+
+  .stage {
+    flex: 1 1 0;
+    border: 1px solid var(--rule-strong);
+    background: var(--surface);
+    padding: 0.9rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .stage + .stage { border-left: none; }
+
+  .stage-label {
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.6875rem;
+  }
+
+  .stage-body { color: var(--ink); line-height: 1.45; }
+
+  .stage-note { color: var(--ink-dim); line-height: 1.45; }
+
+  .stage.is-secret { background: var(--accent-soft); }
+
+  /* ---------- byte map ----------
+     The strip carries proportion only. Labels live in the table beneath it:
+     a one-byte field cannot be both to scale and wide enough to read. */
+
+  .bytebar {
+    display: flex;
+    height: 2.75rem;
+    border: 1px solid var(--rule-strong);
+    overflow: hidden;
+  }
+
+  .seg {
+    background: var(--surface);
+    border-right: 1px solid var(--rule-strong);
+    min-width: 0;
+  }
+
+  .seg:last-child { border-right: none; }
+
+  /* Header travels in the clear but is covered by the tag. */
+  .seg.is-header {
+    background: repeating-linear-gradient(
+      -45deg,
+      var(--accent-soft) 0 6px,
+      transparent 6px 12px
+    );
+  }
+
+  .seg.is-variable { background: var(--surface-alt); }
+
+  .bytebar + .legend { margin-top: -0.15rem; }
+
+  td.offset { color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.size { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--ink-dim);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-width: none;
+  }
+
+  .legend li { display: flex; align-items: center; gap: 0.5rem; }
+
+  .swatch {
+    width: 0.85rem;
+    height: 0.85rem;
+    border: 1px solid var(--rule-strong);
+    flex: none;
+  }
+
+  .swatch.hatched {
+    background: repeating-linear-gradient(
+      -45deg,
+      var(--accent-soft) 0 4px,
+      transparent 4px 8px
+    );
+  }
+
+  .swatch.plain-fill { background: var(--surface); }
+  .swatch.variable-fill { background: var(--surface-alt); }
+
+  /* ---------- phases ---------- */
+
+  .phases {
+    display: flex;
+    min-width: 40rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    border: 1px solid var(--rule-strong);
+  }
+
+  .phase {
+    flex: 1 1 0;
+    padding: 1rem;
+    border-right: 1px solid var(--rule-strong);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    background: var(--surface);
+  }
+
+  .phase:last-child { border-right: none; }
+
+  .phase.is-costly { background: var(--accent-soft); }
+
+  .phase-cost {
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  /* ---------- tables ---------- */
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 34rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    text-align: left;
+  }
+
+  caption {
+    caption-side: top;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--ink-dim);
+    padding-bottom: 0.75rem;
+  }
+
+  th, td {
+    padding: 0.6rem 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+
+  thead th {
+    color: var(--ink-dim);
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.6875rem;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+
+  td:first-child { color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  tr.is-pivot td {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  tr.is-pivot td:first-child { color: var(--accent); }
+
+  /* ---------- callout ---------- */
+
+  .callout {
+    border-left: 2px solid var(--warn);
+    background: var(--warn-soft);
+    padding: 1.15rem 1.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .callout .callout-label {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--warn);
+  }
+
+  .callout p { margin: 0; }
+
+  /* ---------- code line ---------- */
+
+  .codeline {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--accent-line);
+    padding: 0.9rem 1.1rem;
+    overflow-x: auto;
+    line-height: 1.6;
+    max-width: none;
+  }
+
+  /* ---------- split columns ---------- */
+
+  .split {
+    display: grid;
+    gap: 1.75rem;
+    max-width: none;
+  }
+
+  @media (min-width: 720px) {
+    .split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  .card {
+    border: 1px solid var(--rule);
+    background: var(--surface);
+    padding: 1.25rem 1.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .card h3 {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 400;
+    color: var(--accent);
+  }
+
+  .card p { margin: 0; font-size: 1rem; }
+
+  /* ---------- footer ---------- */
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 2rem;
+    margin-top: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 2rem;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--ink-dim);
+    max-width: none;
+  }
+
+  /* ---------- a11y ---------- */
+
+  a:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+
+  html { scroll-behavior: smooth; }
+  section[id] { scroll-margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <p class="eyebrow">FL2601 Cipher Tool</p>
+    <h1>Theory of Operation</h1>
+    <p class="standfirst">
+      How a passphrase and a message become a block of base64, and how that block
+      becomes a message again. This describes what the code does and, where it
+      matters, why it does that rather than some other reasonable thing.
+    </p>
+    <ul class="masthead-meta">
+      <li>Format version 1</li>
+      <li>PBKDF2-HMAC-SHA256 &middot; AES-256-GCM</li>
+      <li><a href="https://github.com/sevmorris/FL2601">github.com/sevmorris/FL2601</a></li>
+      <li>GPL-3.0</li>
+    </ul>
+  </header>
+
+  <div class="shell">
+
+    <nav class="index" aria-label="Sections">
+      <h2>Contents</h2>
+      <ol>
+        <li><a href="#problem">The problem</a></li>
+        <li><a href="#pipeline">The pipeline</a></li>
+        <li><a href="#derivation">Key derivation</a></li>
+        <li><a href="#encryption">Encryption</a></li>
+        <li><a href="#payload">The payload</a></li>
+        <li><a href="#self-describing">A format that describes itself</a></li>
+        <li><a href="#decryption">Decryption</a></li>
+        <li><a href="#threat">Threat model</a></li>
+        <li><a href="#architecture">How it is built</a></li>
+        <li><a href="#change">What forces a format change</a></li>
+      </ol>
+    </nav>
+
+    <main class="prose">
+
+      <section id="problem">
+        <h2 class="section-head"><span class="num">01</span> The problem</h2>
+        <p>
+          You have text to hand someone over a channel you do not trust &mdash; email,
+          chat, a photograph of a screen &mdash; such that only a person who knows a
+          shared passphrase can read it.
+        </p>
+        <p>That requires three things, and all three are easy to get subtly wrong.</p>
+        <div class="split">
+          <div class="card">
+            <h3>Passphrase to key</h3>
+            <p>
+              People choose passphrases from a far smaller space than a 256-bit key
+              occupies. The gap has to be made expensive to search.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Key to ciphertext</h3>
+            <p>
+              The result must reveal nothing about the plaintext, and encrypting the
+              same message twice must not produce the same output.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Detecting tampering</h3>
+            <p>
+              Encryption alone does not stop someone flipping bits in transit. Without
+              authentication, a modified ciphertext decrypts to modified plaintext and
+              you have no way to know.
+            </p>
+          </div>
+        </div>
+        <p>Everything below follows from those three requirements.</p>
+      </section>
+
+      <section id="pipeline">
+        <h2 class="section-head"><span class="num">02</span> The pipeline</h2>
+        <figure>
+          <div class="scroller">
+            <div class="pipeline">
+              <div class="stage">
+                <span class="stage-label">Input</span>
+                <span class="stage-body">Passphrase</span>
+                <span class="stage-note">Plus a fresh 16-byte salt</span>
+              </div>
+              <div class="stage is-secret">
+                <span class="stage-label">Derive</span>
+                <span class="stage-body">PBKDF2-HMAC-SHA256</span>
+                <span class="stage-note">600,000 rounds &rarr; 256-bit key</span>
+              </div>
+              <div class="stage is-secret">
+                <span class="stage-label">Encrypt</span>
+                <span class="stage-body">AES-256-GCM</span>
+                <span class="stage-note">Fresh 12-byte nonce; header passed as AAD</span>
+              </div>
+              <div class="stage">
+                <span class="stage-label">Emit</span>
+                <span class="stage-body">Base64 payload</span>
+                <span class="stage-note">header &#8214; salt &#8214; nonce &#8214; ciphertext &#8214; tag</span>
+              </div>
+            </div>
+          </div>
+          <figcaption>
+            Two random values are generated per message and both travel with the
+            output in the clear. Neither is secret.
+          </figcaption>
+        </figure>
+        <p>
+          The salt exists so that the same passphrase produces a different key every
+          time. The nonce exists so that the same key produces different ciphertext
+          every time. Reusing either would be a serious flaw, so both come from
+          <code>SecRandomCopyBytes</code> on every call.
+        </p>
+      </section>
+
+      <section id="derivation">
+        <h2 class="section-head"><span class="num">03</span> Key derivation</h2>
+        <p class="codeline">key = PBKDF2-HMAC-SHA256(passphrase, salt, iterations)&nbsp;&nbsp;// 32 bytes</p>
+        <p>
+          PBKDF2 is deliberately slow. The only reason to run 600,000 rounds of HMAC
+          instead of one is to impose that cost on somebody guessing passphrases. A
+          single derivation takes roughly 70&nbsp;ms on Apple silicon &mdash; unnoticeable
+          when you press a button once, and a 600,000&times; multiplier on the cost of a
+          brute-force search. That figure is
+          <a href="https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html">OWASP's current floor</a>
+          for PBKDF2-HMAC-SHA256.
+        </p>
+        <h3>Why not something better</h3>
+        <p>
+          Argon2id and scrypt are memory-hard: they resist GPU and ASIC attacks far
+          better than PBKDF2, which parallelizes cheaply. They are the better choice
+          on the merits. Neither ships in Apple's CryptoKit or CommonCrypto, so using
+          one means vendoring a third-party implementation of a primitive whose
+          correctness is load-bearing. That trade &mdash; a stronger KDF against an
+          Apple-audited implementation and zero dependencies &mdash; went to PBKDF2.
+          <a href="#self-describing">Section 06</a> explains how the decision can be
+          revisited later without breaking anything already encrypted.
+        </p>
+        <p>
+          Derived key bytes are zeroed once <code>SymmetricKey</code> has copied them.
+          The passphrase itself is not wiped &mdash; Swift's <code>String</code> provides no
+          way to reach its storage &mdash; so that is a partial measure, and is described as
+          one rather than claimed as a guarantee.
+        </p>
+      </section>
+
+      <section id="encryption">
+        <h2 class="section-head"><span class="num">04</span> Encryption</h2>
+        <p class="codeline">nonce &#8214; ciphertext &#8214; tag = AES-256-GCM(key, plaintext, aad: header)</p>
+        <p>
+          AES-GCM is an authenticated cipher: it produces a 16-byte tag alongside the
+          ciphertext, and decryption verifies that tag before returning any plaintext.
+          A single flipped bit anywhere in the ciphertext, nonce, or tag causes
+          decryption to fail outright rather than return garbage.
+        </p>
+        <h3>The header is authenticated but not encrypted</h3>
+        <p>
+          The 10-byte header is passed to AES-GCM as additional authenticated data. It
+          is not encrypted &mdash; anyone can read the version and iteration count off a
+          message &mdash; but it is covered by the tag, so altering any of it makes
+          decryption fail.
+        </p>
+        <p>
+          This matters because the header tells the decryptor how to derive the key.
+          Left unauthenticated, it would be the one part of the message an attacker
+          could rewrite freely.
+        </p>
+        <p>
+          The salt is not in the additional data, and does not need to be: it feeds the
+          key derivation, so changing it produces a different key, which fails the tag
+          check on its own.
+        </p>
+      </section>
+
+      <section id="payload">
+        <h2 class="section-head"><span class="num">05</span> The payload</h2>
+        <figure>
+          <div class="bytebar" aria-hidden="true">
+            <div class="seg is-header" style="flex: 4"></div>
+            <div class="seg is-header" style="flex: 1"></div>
+            <div class="seg is-header" style="flex: 1"></div>
+            <div class="seg is-header" style="flex: 4"></div>
+            <div class="seg" style="flex: 16"></div>
+            <div class="seg" style="flex: 12"></div>
+            <div class="seg is-variable" style="flex: 22"></div>
+            <div class="seg" style="flex: 16"></div>
+          </div>
+          <ul class="legend">
+            <li><span class="swatch hatched" aria-hidden="true"></span> Header &mdash; authenticated, sent in the clear</li>
+            <li><span class="swatch plain-fill" aria-hidden="true"></span> Fixed width</li>
+            <li><span class="swatch variable-fill" aria-hidden="true"></span> Varies with message length</li>
+          </ul>
+          <div class="scroller">
+            <table>
+              <caption>Segments above are drawn to scale; the ciphertext is shown at an arbitrary length.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Offset</th>
+                  <th scope="col">Size</th>
+                  <th scope="col">Field</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="offset">0</td><td class="size">4 bytes</td><td>Magic <code>FL26</code></td></tr>
+                <tr><td class="offset">4</td><td class="size">1 byte</td><td>Format version</td></tr>
+                <tr><td class="offset">5</td><td class="size">1 byte</td><td>KDF identifier (1 = PBKDF2-HMAC-SHA256)</td></tr>
+                <tr><td class="offset">6</td><td class="size">4 bytes</td><td>KDF iterations, big-endian uint32</td></tr>
+                <tr><td class="offset">10</td><td class="size">16 bytes</td><td>Salt</td></tr>
+                <tr><td class="offset">26</td><td class="size">12 bytes</td><td>AES-GCM nonce</td></tr>
+                <tr><td class="offset">38</td><td class="size">n bytes</td><td>Ciphertext</td></tr>
+                <tr><td class="offset">38 + n</td><td class="size">16 bytes</td><td>AES-GCM authentication tag</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <figcaption>
+            The whole structure is base64-encoded, and that is what you copy out of the
+            app.
+          </figcaption>
+        </figure>
+        <p>
+          A payload is therefore always at least 54 bytes: 10 + 16 + 12 + 16, with
+          <code>n</code> of zero. That minimum is enforced literally. An empty message
+          is a legitimate thing to encrypt, so the length check uses <code>&gt;=</code>
+          rather than <code>&gt;</code> and a zero-length ciphertext is accepted. An
+          earlier revision used <code>&gt;</code> and rejected its own output for the
+          empty string; the differential suite covers it now.
+        </p>
+
+        <h3>The armor around it</h3>
+        <p>What the app puts on the clipboard is that base64 inside a labelled envelope:</p>
+        <pre class="codeline">-----BEGIN FL2601 MESSAGE-----
+Comment: Encrypted with FL2601 Cipher Tool
+Comment: https://github.com/sevmorris/FL2601
+
+RkwyNgEBAAknwJX5kSpGJS54IxUA7LVlb3ulUNz2+hmlKMKOoc2R8MwKuvL6K596
+xSZPuCR0Ri1MyqOmw/nzm1TAeyZWjlkb/6KnTZkRUpFmVoc=
+-----END FL2601 MESSAGE-----</pre>
+        <p>
+          <strong>This is presentation, not format.</strong> The bytes between the
+          markers are exactly what the table above describes; deleting the surrounding
+          lines leaves a payload any build can read. Decryption accepts the whole block
+          or the bare base64 interchangeably, so messages written before the envelope
+          existed keep working.
+        </p>
+        <p>
+          The distinction matters for more than tidiness. The header <em>inside</em> the
+          payload is covered by the GCM tag and cannot be altered undetected. These
+          lines are not, and nothing in them is ever trusted &mdash; they are read only
+          as a hint about where the base64 begins and ends. A message whose comment
+          claims to be something it is not changes nothing about how it is decrypted.
+        </p>
+        <p>
+          The envelope exists because base64 is anonymous. Every payload happens to
+          begin with <code>Rkwy</code> &mdash; that is <code>FL26</code> encoded &mdash;
+          but nobody reads base64 prefixes. Someone who has never heard of this tool
+          should be able to tell what they are holding, and where to get something that
+          opens it.
+        </p>
+      </section>
+
+      <section id="self-describing">
+        <h2 class="section-head"><span class="num">06</span> A format that describes itself</h2>
+        <p>
+          The iteration count travels <em>in the message</em>. It is not a constant the
+          decryptor assumes. This is the most consequential decision in the project,
+          and it was made in response to a concrete failure.
+        </p>
+        <div class="callout">
+          <span class="callout-label">The failure it prevents</span>
+          <p>
+            An earlier revision hardcoded the count. Raising the work factor from
+            100,000 to 600,000 would have made every previously encrypted message
+            permanently unreadable &mdash; the same passphrase and the same salt deriving a
+            different key, the tag check failing, and the app reporting
+            <em>&ldquo;Decryption failed. Check password and ciphertext.&rdquo;</em> on a message
+            with the correct passphrase.
+          </p>
+          <p>
+            The failure would have been indistinguishable from a typo, on data the user
+            could no longer recover.
+          </p>
+        </div>
+        <p>
+          Because the count is data rather than code, a decryptor reads how the key was
+          derived instead of guessing. A message written at 10,000 iterations opens on
+          an engine whose default is 600,000, without being told &mdash; the test suite
+          asserts exactly that.
+        </p>
+        <p>
+          The KDF identifier at byte 5 extends the idea to the algorithm. Adding
+          Argon2id later means allocating identifier <code>2</code> and teaching the
+          decryptor to switch on it; messages written today keep declaring identifier
+          <code>1</code> and keep opening. The version at byte 4 is the escape hatch for
+          changes this scheme cannot express.
+        </p>
+      </section>
+
+      <section id="decryption">
+        <h2 class="section-head"><span class="num">07</span> Decryption, and one ordering problem</h2>
+        <figure>
+          <div class="scroller">
+            <div class="phases">
+              <div class="phase">
+                <span class="phase-cost">Microseconds</span>
+                <span>Parse and validate the header</span>
+              </div>
+              <div class="phase is-costly">
+                <span class="phase-cost">~70 ms</span>
+                <span>Derive the key</span>
+              </div>
+              <div class="phase">
+                <span class="phase-cost">Microseconds</span>
+                <span>Verify the tag, decode UTF-8</span>
+              </div>
+            </div>
+          </div>
+          <figcaption>Every check that can be made cheaply is made before the expensive step.</figcaption>
+        </figure>
+        <div class="scroller">
+          <table>
+            <caption>Validation gates, in the order they run.</caption>
+            <thead>
+              <tr><th scope="col">#</th><th scope="col">Gate</th><th scope="col">Failure</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1</td><td>Decodes as base64, at least 54 bytes</td><td>Not an FL2601 message</td></tr>
+              <tr><td>2</td><td>Bytes 0&ndash;3 are <code>FL26</code></td><td>Not an FL2601 message</td></tr>
+              <tr><td>3</td><td>Byte 4 is a known version</td><td>Unsupported version <em>N</em></td></tr>
+              <tr><td>4</td><td>Byte 5 is a known KDF identifier</td><td>Unknown KDF <em>N</em></td></tr>
+              <tr><td>5</td><td>Bytes 6&ndash;9 fall in 10,000&ndash;10,000,000</td><td>Implausible iteration count</td></tr>
+              <tr class="is-pivot"><td>&mdash;</td><td>Key derivation runs here</td><td>&mdash;</td></tr>
+              <tr><td>6</td><td>GCM tag verifies</td><td>Decryption failed</td></tr>
+              <tr><td>7</td><td>Plaintext is valid UTF-8</td><td>Decryption failed</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Whitespace is stripped before decoding, so base64 that an email client
+          wrapped across lines still pastes cleanly. This mirrors what browsers'
+          <code>atob</code> does.
+        </p>
+        <h3>The ordering problem</h3>
+        <p>
+          Key derivation has to happen <em>before</em> the tag can be checked, because
+          the tag check needs the key. So by the time authentication can reject a
+          hostile payload, the app has already spent whatever time that payload's
+          declared iteration count demanded. A message claiming 4.2 billion iterations
+          would be rejected eventually &mdash; but only after the app had stopped responding
+          for a very long time.
+        </p>
+        <p>
+          That is why the count is range-checked before derivation runs. The bound is
+          not a cryptographic control; it is the thing standing between a malicious
+          paste and an unresponsive app. The test suite asserts both that such a
+          payload is rejected and that the rejection takes under two seconds.
+        </p>
+        <h3>Why failures are vague on purpose</h3>
+        <p>
+          Everything from the tag check onward reports the same message:
+          <em>Decryption failed. Check password and ciphertext.</em>
+        </p>
+        <p>
+          A wrong passphrase and a tampered message are the same event to AES-GCM. The
+          tag does not verify, and nothing in the failure distinguishes which cause
+          produced it. An app claiming to tell them apart would be guessing, and a
+          confident wrong guess &mdash; <em>your passphrase is correct, the message was
+          modified</em> &mdash; is worse than no information at all.
+        </p>
+        <p>
+          The checks before the tag are different in kind: they read unauthenticated
+          metadata, so they can report precisely what is malformed without implying
+          anything about the key.
+        </p>
+      </section>
+
+      <section id="threat">
+        <h2 class="section-head"><span class="num">08</span> Threat model</h2>
+        <div class="split">
+          <div class="card">
+            <h3>Protects against</h3>
+            <p>
+              Anyone who obtains the ciphertext without the passphrase: they learn the
+              approximate message length, the format version, and the iteration count,
+              and nothing else. Anyone who modifies the ciphertext in transit,
+              including the header &mdash; the change is detected and decryption fails.
+              Offline guessing is slowed by a factor of 600,000.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Does not protect against</h3>
+            <p>
+              A weak passphrase: 600,000 iterations multiplies an attacker's cost, it
+              does not create entropy that was never there. Anything that can read the
+              machine while the app is running. Anyone who obtains the passphrase by
+              means outside this program. Traffic analysis &mdash; the tool hides content,
+              not the fact that you sent something.
+            </p>
+          </div>
+        </div>
+        <p>
+          Deliberately out of scope: no key exchange, so the passphrase reaches the
+          recipient by some other means and that channel is your problem. No forward
+          secrecy &mdash; the same passphrase decrypts every message ever encrypted with it.
+          No identity or signing: a valid message proves someone knew the passphrase,
+          not who.
+        </p>
+        <h3>What the sandbox buys</h3>
+        <p>
+          The app runs with <code>com.apple.security.app-sandbox</code> and nothing
+          else. No network entitlement, no file access, no hardware access.
+        </p>
+        <p>
+          The absence of a network entitlement is the substantive claim. It is enforced
+          by the kernel rather than by the code's good intentions, and it holds even if
+          the app is compromised at runtime: there is no code path, intended or
+          otherwise, that can open a socket. For a tool asking you to type secrets into
+          it, <em>cannot exfiltrate</em> is a stronger property than
+          <em>does not exfiltrate</em>.
+        </p>
+        <p>
+          Nothing is written to disk &mdash; no preferences, no autosave, no recent documents.
+          Text enters through the window and leaves through the clipboard.
+        </p>
+      </section>
+
+      <section id="architecture">
+        <h2 class="section-head"><span class="num">09</span> How it is built</h2>
+        <p>
+          Three layers, with the crypto isolated from the interface and from any
+          knowledge of it.
+        </p>
+        <div class="scroller">
+          <table>
+            <thead>
+              <tr><th scope="col">Layer</th><th scope="col">Kind</th><th scope="col">Responsibility</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>CipherEngine</td><td>actor</td><td>Format, derivation, encryption. Knows nothing about the interface.</td></tr>
+              <tr><td>CipherViewModel</td><td>@MainActor @Observable</td><td>Field contents, validation, mode, status. Knows nothing about crypto beyond calling the engine.</td></tr>
+              <tr><td>ContentView</td><td>View</td><td>Layout and styling. Holds no logic worth testing.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          <code>CipherEngine</code> is an actor for a specific reason: 600,000 rounds of
+          HMAC on the main thread would freeze the window for the duration. As an actor
+          its methods run on the cooperative thread pool, and the view model awaits them
+          from the main actor.
+        </p>
+        <p>
+          The split is also what makes the app testable without a running interface.
+          Both suites compile the real source files &mdash; not copies &mdash; and exercise them
+          headlessly. The differential suite cross-checks the engine against an
+          independent implementation of the same format written against WebCrypto
+          instead of CryptoKit. Two unrelated crypto libraries agreeing on every byte
+          is far stronger evidence than one implementation agreeing with itself, and it
+          is how the empty-message length bug in section 05 was found.
+        </p>
+        <h3>Passphrase confirmation</h3>
+        <p>
+          Encryption asks for the passphrase twice. Decryption asks once. The asymmetry
+          is not an oversight.
+        </p>
+        <p>
+          When decrypting, a mistyped passphrase fails loudly and immediately &mdash; the tag
+          check catches it and you try again. When encrypting, a mistyped passphrase
+          produces a perfectly valid message that nobody can ever open, and you find out
+          much later. The confirmation field exists only where the mistake is silent and
+          irreversible.
+        </p>
+      </section>
+
+      <section id="change">
+        <h2 class="section-head"><span class="num">10</span> What forces a format change</h2>
+        <p>Recorded so the answer is not re-derived later.</p>
+        <div class="scroller">
+          <table>
+            <thead>
+              <tr><th scope="col">Change</th><th scope="col">Version bump</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Different iteration count</td><td>No &mdash; already per-message data</td></tr>
+              <tr><td>Argon2id or scrypt</td><td>No &mdash; new KDF identifier at byte 5</td></tr>
+              <tr><td>Different salt or nonce length</td><td>Yes &mdash; geometry is fixed by version</td></tr>
+              <tr><td>Different AAD rule</td><td>Yes &mdash; silently changes what the tag covers</td></tr>
+              <tr><td>Compression before encryption</td><td>Yes</td></tr>
+              <tr><td>ChaCha20-Poly1305 instead of AES-GCM</td><td>Yes &mdash; tag and nonce layout differ</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          A version bump is not a disaster. Byte 4 exists precisely so a decryptor can
+          recognize a payload it cannot handle and say so, rather than deriving a key,
+          failing the tag check, and blaming the passphrase.
+        </p>
+      </section>
+
+      <footer>
+        <span>FL2601 Cipher Tool &middot; macOS 15+</span>
+        <span><a href="https://github.com/sevmorris/FL2601">Source</a></span>
+        <span><a href="https://github.com/sevmorris/FL2601/releases">Releases</a></span>
+        <span>The authoritative source is CipherEngine.swift; where this disagrees with it, the file is right.</span>
+      </footer>
+
+    </main>
+  </div>
+</div>
+</body>
+</html>
