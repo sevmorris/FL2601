@@ -3,16 +3,35 @@ import SwiftUI
 struct ContentView: View {
     @State private var model = CipherViewModel()
 
+    /// Space between the panel and the window edge, top and bottom.
+    private static let verticalInset: CGFloat = 32
+
     var body: some View {
-        ScrollView {
-            panel
-                .frame(maxWidth: 800)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 32)
-                .frame(maxWidth: .infinity)
+        GeometryReader { proxy in
+            ScrollView {
+                panel
+                    // Stretch the panel to the window height so its height is
+                    // fixed by the window rather than by its contents. The text
+                    // editor is the only element that can grow, so it absorbs
+                    // whatever the confirmation field is not using, and nothing
+                    // moves when the mode changes.
+                    .frame(
+                        maxWidth: 800,
+                        minHeight: max(0, proxy.size.height - Self.verticalInset * 2),
+                        alignment: .top
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, Self.verticalInset)
+                    .frame(maxWidth: .infinity)
+            }
+            // Still scrollable, so shrinking the window past the point where
+            // everything fits degrades to scrolling rather than clipping.
+            .scrollBounceBehavior(.basedOnSize)
         }
+        // A GeometryReader has no intrinsic size, so without a floor here the
+        // window could be dragged down to nothing.
+        .frame(minWidth: 640, minHeight: 620)
         .background(Theme.background)
-        .scrollBounceBehavior(.basedOnSize)
     }
 
     private var panel: some View {
@@ -33,6 +52,7 @@ struct ContentView: View {
                 FieldLabel(text: model.mode.inputLabel)
                 TerminalTextEditor(prompt: model.mode.inputPrompt, text: $model.inputText)
             }
+            .frame(maxHeight: .infinity)
             .padding(.bottom, 24)
 
             actions

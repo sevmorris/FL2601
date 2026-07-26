@@ -64,7 +64,10 @@ struct TerminalTextEditor: View {
     var body: some View {
         TextEditor(text: $text)
             .scrollContentBackground(.hidden)
-            .frame(minHeight: 200)
+            // Flexible on purpose: this is the one element that absorbs slack,
+            // so the panel keeps a constant height whether or not the
+            // confirmation field is showing.
+            .frame(minHeight: 200, maxHeight: .infinity)
             .focused($isFocused)
             .overlay(alignment: .topLeading) {
                 if text.isEmpty {
