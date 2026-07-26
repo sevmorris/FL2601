@@ -8,13 +8,18 @@ enum Theme {
     static let greenLo = Color(hex: 0x1A6B1A)
     static let background = Color(hex: 0x0A0A0A)
     static let panel = Color(hex: 0x111111)
-    static let border = Color(hex: 0x222222)
-    static let text = Color(hex: 0xCCCCCC)
     static let inputBackground = Color.black
     static let resultBackground = Color(hex: 0x050505)
     static let error = Color(hex: 0xFF4444)
-    static let inactiveTab = Color(hex: 0x555555)
-    static let footnote = Color(hex: 0x666666)
+
+    // Greys lifted from the original stylesheet's values. Against the #111
+    // panel the inactive tab was at 2.5:1 and the footnote at 3.3:1, both under
+    // the 4.5:1 needed for body text; they now sit at 5.5:1 and 4.7:1. Field
+    // outlines went from 1.2:1 to 1.6:1 — still quiet, but actually visible.
+    static let border = Color(hex: 0x383838)
+    static let text = Color(hex: 0xD6D6D6)
+    static let inactiveTab = Color(hex: 0x8A8A8A)
+    static let footnote = Color(hex: 0x7E7E7E)
 
     /// 1rem in the stylesheet == 16pt here.
     enum Size {
