@@ -61,16 +61,30 @@ final class CipherViewModel {
         }
     }
 
+    /// Whether the confirmation field currently agrees with the password.
+    /// `notShown` while decrypting, `pending` until the user has typed
+    /// something, so the UI does not flash a mismatch on the first keystroke.
+    enum Confirmation {
+        case notShown
+        case pending
+        case match
+        case mismatch
+    }
+
     var mode: Mode = .encrypt {
         didSet {
             guard mode != oldValue else { return }
             // Hide output when switching modes to avoid confusion.
             showResult = false
             status = .idle
+            // Decrypt has no confirmation field; drop the value rather than
+            // leave it to reappear stale when the user switches back.
+            confirmPassword = ""
         }
     }
 
     var password = ""
+    var confirmPassword = ""
     var inputText = ""
     var result = ""
     var showResult = false
@@ -78,8 +92,23 @@ final class CipherViewModel {
     var isProcessing = false
     var didJustCopy = false
 
+    /// Only encryption confirms. When decrypting, a mistyped password simply
+    /// fails to decrypt, so a second field would add friction and catch
+    /// nothing.
+    var requiresConfirmation: Bool {
+        mode == .encrypt
+    }
+
+    var confirmation: Confirmation {
+        guard requiresConfirmation else { return .notShown }
+        if confirmPassword.isEmpty { return .pending }
+        return password == confirmPassword ? .match : .mismatch
+    }
+
     var canSubmit: Bool {
-        !isProcessing && !password.isEmpty && !inputText.isEmpty
+        guard !isProcessing, !password.isEmpty, !inputText.isEmpty else { return false }
+        guard requiresConfirmation else { return true }
+        return password == confirmPassword
     }
 
     private let engine = CipherEngine()
@@ -90,6 +119,9 @@ final class CipherViewModel {
 
         guard !password.isEmpty else {
             return fail(CipherError.passwordRequired)
+        }
+        guard !requiresConfirmation || password == confirmPassword else {
+            return fail(CipherError.passwordMismatch)
         }
         guard !inputText.isEmpty else {
             return fail(CipherError.inputRequired)
@@ -121,6 +153,7 @@ final class CipherViewModel {
 
     func clearAll() {
         password = ""
+        confirmPassword = ""
         inputText = ""
         result = ""
         showResult = false

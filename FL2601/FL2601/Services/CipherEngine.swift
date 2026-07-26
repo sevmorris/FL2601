@@ -60,6 +60,7 @@ enum KDFIdentifier: UInt8 {
 
 enum CipherError: LocalizedError, Equatable {
     case passwordRequired
+    case passwordMismatch
     case inputRequired
     case malformedPayload
     case unsupportedVersion(UInt8)
@@ -74,6 +75,8 @@ enum CipherError: LocalizedError, Equatable {
         switch self {
         case .passwordRequired:
             "Password required."
+        case .passwordMismatch:
+            "Passwords do not match."
         case .inputRequired:
             "Input text required."
         case .malformedPayload:

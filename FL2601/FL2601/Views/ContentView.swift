@@ -19,11 +19,8 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
 
-            VStack(alignment: .leading, spacing: 8) {
-                FieldLabel(text: "Access Password")
-                TerminalSecureField(prompt: "Enter password...", text: $model.password)
-            }
-            .padding(.bottom, 24)
+            passwordFields
+                .padding(.bottom, 24)
 
             TabNav(selection: $model.mode)
                 .padding(.bottom, 24)
@@ -49,6 +46,45 @@ struct ContentView: View {
         .background(Theme.panel)
         .overlay(Rectangle().strokeBorder(Theme.border, lineWidth: 1))
         .shadow(color: .black.opacity(0.5), radius: 15, y: 10)
+    }
+
+    private var passwordFields: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 8) {
+                FieldLabel(text: "Access Password")
+                TerminalSecureField(prompt: "Enter password...", text: $model.password)
+            }
+
+            if model.requiresConfirmation {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 12) {
+                        FieldLabel(text: "Confirm Password")
+                        Spacer()
+                        confirmationIndicator
+                    }
+                    TerminalSecureField(prompt: "Re-enter password...", text: $model.confirmPassword)
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.15), value: model.requiresConfirmation)
+    }
+
+    @ViewBuilder
+    private var confirmationIndicator: some View {
+        switch model.confirmation {
+        case .match:
+            Text("[ MATCH ]")
+                .font(Theme.mono(Theme.Size.label, weight: .bold))
+                .foregroundStyle(Theme.green)
+                .accessibilityLabel("Passwords match")
+        case .mismatch:
+            Text("[ NO MATCH ]")
+                .font(Theme.mono(Theme.Size.label, weight: .bold))
+                .foregroundStyle(Theme.error)
+                .accessibilityLabel("Passwords do not match")
+        case .pending, .notShown:
+            EmptyView()
+        }
     }
 
     private var header: some View {

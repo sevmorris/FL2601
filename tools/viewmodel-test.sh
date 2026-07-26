@@ -50,13 +50,36 @@ func run() async {
     check("password required error", vm.status == .failed("Password required."), "got \(vm.status)")
 
     vm.password = "pw"
+    vm.confirmPassword = "pw"
     vm.inputText = ""
     check("submit disabled without input", !vm.canSubmit)
     await vm.process()
     check("input required error", vm.status == .failed("Input text required."), "got \(vm.status)")
 
+    print("\n== Password confirmation (encrypt only) ==")
+    vm.clearAll()
+    vm.inputText = "secret plans"
+    check("confirmation required in encrypt mode", vm.requiresConfirmation)
+    check("indicator pending while confirm empty", vm.confirmation == .pending)
+
+    vm.password = "s3cret"
+    check("still pending with only password typed", vm.confirmation == .pending)
+    check("submit blocked until confirmed", !vm.canSubmit)
+
+    vm.confirmPassword = "s3cr"
+    check("partial entry reads as mismatch", vm.confirmation == .mismatch)
+    check("submit blocked on mismatch", !vm.canSubmit)
+    await vm.process()
+    check("mismatch error", vm.status == .failed("Passwords do not match."), "got \(vm.status)")
+    check("nothing encrypted on mismatch", !vm.showResult)
+
+    vm.confirmPassword = "s3cret"
+    check("indicator reports match", vm.confirmation == .match)
+    check("submit enabled once matched", vm.canSubmit)
+
     print("\n== Encrypt flow ==")
     vm.password = "s3cret"
+    vm.confirmPassword = "s3cret"
     vm.inputText = "Attack at dawn — 🌅"
     check("submit enabled when both filled", vm.canSubmit)
     await vm.process()
@@ -66,16 +89,20 @@ func run() async {
     check("not left processing", !vm.isProcessing)
     let ciphertext = vm.result
 
-    print("\n== Mode switch clears output ==")
+    print("\n== Mode switch ==")
     vm.mode = .decrypt
     check("output hidden after switch", !vm.showResult)
     check("status reset after switch", vm.status == .idle)
     check("labels follow mode", vm.mode.inputLabel == "Ciphertext (Base64)")
     check("action title follows mode", vm.mode.actionTitle == "Decrypt Text")
+    check("no confirmation when decrypting", !vm.requiresConfirmation)
+    check("confirmation value discarded", vm.confirmPassword.isEmpty)
+    check("indicator hidden", vm.confirmation == .notShown)
 
     print("\n== Decrypt flow ==")
     vm.password = "s3cret"
     vm.inputText = ciphertext
+    check("decrypt submits without a confirmation", vm.canSubmit)
     await vm.process()
     check("status ok", vm.status == .ok("Decryption successful."), "got \(vm.status)")
     check("round-trips the plaintext", vm.result == "Attack at dawn — 🌅", "got \(vm.result)")
@@ -98,8 +125,12 @@ func run() async {
     check("pasteboard matches result", pasteboard == vm.result, "got \(pasteboard ?? "nil")")
 
     print("\n== Clear ==")
+    vm.mode = .encrypt
+    vm.password = "s3cret"
+    vm.confirmPassword = "s3cret"
     vm.clearAll()
     check("password cleared", vm.password.isEmpty)
+    check("confirmation cleared", vm.confirmPassword.isEmpty)
     check("input cleared", vm.inputText.isEmpty)
     check("result cleared", vm.result.isEmpty)
     check("output hidden", !vm.showResult)
