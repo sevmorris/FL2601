@@ -19,10 +19,14 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
 
-            passwordFields
+            // Mode selection sits above the fields it governs. The confirm
+            // field appears only when encrypting, so anything below the tabs
+            // shifts when the mode changes — keeping the tabs above that point
+            // means the control you just clicked stays put.
+            TabNav(selection: $model.mode)
                 .padding(.bottom, 24)
 
-            TabNav(selection: $model.mode)
+            passwordFields
                 .padding(.bottom, 24)
 
             VStack(alignment: .leading, spacing: 8) {
