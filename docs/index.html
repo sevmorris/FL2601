@@ -16,6 +16,8 @@
     --surface-alt: #EAEEE6;
     --rule:        #D3DBCE;
     --rule-strong: #A9B8A4;
+    --seg-fill:    #E6EFE3;
+    --seg-line:    #7BA277;
     --ink:         #171D16;
     --ink-mid:     #4A5548;
     --ink-dim:     #6C7869;
@@ -44,6 +46,8 @@
       --surface-alt: #161B14;
       --rule:        #1E2A1E;
       --rule-strong: #2E4030;
+      --seg-fill:    #1C2419;
+      --seg-line:    #46643F;
       --ink:         #C9D2C6;
       --ink-mid:     #97A394;
       --ink-dim:     #77836F;
@@ -61,6 +65,8 @@
     --surface-alt: #161B14;
     --rule:        #1E2A1E;
     --rule-strong: #2E4030;
+    --seg-fill:    #1C2419;
+    --seg-line:    #46643F;
     --ink:         #C9D2C6;
     --ink-mid:     #97A394;
     --ink-dim:     #77836F;
@@ -77,6 +83,8 @@
     --surface-alt: #EAEEE6;
     --rule:        #D3DBCE;
     --rule-strong: #A9B8A4;
+    --seg-fill:    #E6EFE3;
+    --seg-line:    #7BA277;
     --ink:         #171D16;
     --ink-mid:     #4A5548;
     --ink-dim:     #6C7869;
@@ -371,72 +379,63 @@
   .stage.is-secret { background: var(--accent-soft); }
 
   /* ---------- byte map ----------
-     The strip carries proportion only. Labels live in the table beneath it:
-     a one-byte field cannot be both to scale and wide enough to read. */
+     Five segments, each wide enough to carry its own label. The four header
+     fields are drawn as one block because that is how they function: the
+     header is authenticated as a single unit, and a one-byte field cannot be
+     both drawn to scale and readable. The table below breaks it apart. */
 
   .bytebar {
     display: flex;
-    height: 2.75rem;
-    border: 1px solid var(--rule-strong);
-    overflow: hidden;
+    min-width: 34rem;
+    border: 1px solid var(--seg-line);
+    font-family: var(--mono);
   }
 
   .seg {
-    background: var(--surface);
-    border-right: 1px solid var(--rule-strong);
+    flex-basis: 0;
     min-width: 0;
+    overflow: hidden;
+    padding: 0.8rem 0.75rem;
+    background: var(--seg-fill);
+    border-right: 1px solid var(--seg-line);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
   }
 
   .seg:last-child { border-right: none; }
 
-  /* Header travels in the clear but is covered by the tag. */
+  .seg-name {
+    font-size: 0.6875rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .seg-size {
+    font-size: 0.6875rem;
+    color: var(--ink-dim);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* Sent in the clear, but covered by the authentication tag. */
   .seg.is-header {
     background: repeating-linear-gradient(
       -45deg,
-      var(--accent-soft) 0 6px,
-      transparent 6px 12px
+      var(--accent-soft) 0 7px,
+      var(--seg-fill) 7px 14px
     );
   }
-
-  .seg.is-variable { background: var(--surface-alt); }
-
-  .bytebar + .legend { margin-top: -0.15rem; }
 
   td.offset { color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
   td.size { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-  .legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem 1.5rem;
-    font-family: var(--mono);
-    font-size: var(--step--1);
-    color: var(--ink-dim);
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    max-width: none;
-  }
 
-  .legend li { display: flex; align-items: center; gap: 0.5rem; }
 
-  .swatch {
-    width: 0.85rem;
-    height: 0.85rem;
-    border: 1px solid var(--rule-strong);
-    flex: none;
-  }
 
-  .swatch.hatched {
-    background: repeating-linear-gradient(
-      -45deg,
-      var(--accent-soft) 0 4px,
-      transparent 4px 8px
-    );
-  }
 
-  .swatch.plain-fill { background: var(--surface); }
-  .swatch.variable-fill { background: var(--surface-alt); }
 
   /* ---------- phases ---------- */
 
@@ -790,24 +789,33 @@
       <section id="payload">
         <h2 class="section-head"><span class="num">05</span> The payload</h2>
         <figure>
-          <div class="bytebar" aria-hidden="true">
-            <div class="seg is-header" style="flex: 4"></div>
-            <div class="seg is-header" style="flex: 1"></div>
-            <div class="seg is-header" style="flex: 1"></div>
-            <div class="seg is-header" style="flex: 4"></div>
-            <div class="seg" style="flex: 16"></div>
-            <div class="seg" style="flex: 12"></div>
-            <div class="seg is-variable" style="flex: 22"></div>
-            <div class="seg" style="flex: 16"></div>
+          <div class="scroller">
+            <div class="bytebar">
+              <div class="seg is-header" style="flex-grow: 10">
+                <span class="seg-name">Header</span>
+                <span class="seg-size">10 bytes</span>
+              </div>
+              <div class="seg" style="flex-grow: 16">
+                <span class="seg-name">Salt</span>
+                <span class="seg-size">16 bytes</span>
+              </div>
+              <div class="seg" style="flex-grow: 12">
+                <span class="seg-name">Nonce</span>
+                <span class="seg-size">12 bytes</span>
+              </div>
+              <div class="seg" style="flex-grow: 22">
+                <span class="seg-name">Ciphertext</span>
+                <span class="seg-size">n bytes</span>
+              </div>
+              <div class="seg" style="flex-grow: 16">
+                <span class="seg-name">Tag</span>
+                <span class="seg-size">16 bytes</span>
+              </div>
+            </div>
           </div>
-          <ul class="legend">
-            <li><span class="swatch hatched" aria-hidden="true"></span> Header &mdash; authenticated, sent in the clear</li>
-            <li><span class="swatch plain-fill" aria-hidden="true"></span> Fixed width</li>
-            <li><span class="swatch variable-fill" aria-hidden="true"></span> Varies with message length</li>
-          </ul>
           <div class="scroller">
             <table>
-              <caption>Segments above are drawn to scale; the ciphertext is shown at an arbitrary length.</caption>
+              <caption>The four fields inside the header, drawn above as one hatched block.</caption>
               <thead>
                 <tr>
                   <th scope="col">Offset</th>
@@ -828,8 +836,11 @@
             </table>
           </div>
           <figcaption>
-            The whole structure is base64-encoded, and that is what you copy out of the
-            app.
+            Segments are drawn to scale, with the ciphertext shown at an arbitrary
+            length. The header is hatched because it alone travels in the clear
+            &mdash; readable by anyone, but covered by the authentication tag and so
+            impossible to alter undetected. The whole structure is base64-encoded, and
+            that is what you copy out of the app.
           </figcaption>
         </figure>
         <p>
