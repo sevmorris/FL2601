@@ -36,22 +36,15 @@ Everything below follows from those three requirements.
 ## 2. The pipeline
 
 ```mermaid
-flowchart TD
-    A["Passphrase"] --> B["PBKDF2-HMAC-SHA256<br/>600,000 iterations"]
-    S["Random salt<br/>16 bytes"] --> B
-    B --> K["256-bit key"]
-    P["Plaintext<br/>UTF-8"] --> E["AES-256-GCM"]
-    K --> E
-    N["Random nonce<br/>12 bytes"] --> E
-    H["Header<br/>10 bytes"] -.->|"authenticated,<br/>not encrypted"| E
-    E --> C["Ciphertext"]
-    E --> T["Auth tag<br/>16 bytes"]
-    H --> W["Concatenate"]
-    S --> W
-    N --> W
-    C --> W
-    T --> W
-    W --> B64["Base64"]
+flowchart LR
+    P["Passphrase"] --> KDF["PBKDF2-HMAC-SHA256<br/>600,000 rounds"]
+    S["Salt<br/>16 random bytes"] --> KDF
+    KDF --> KEY["256-bit key"]
+    KEY --> GCM["AES-256-GCM"]
+    M["Plaintext"] --> GCM
+    N["Nonce<br/>12 random bytes"] --> GCM
+    H["Header<br/>10 bytes"] -.->|"authenticated,<br/>not encrypted"| GCM
+    GCM --> OUT["Base64 payload"]
 ```
 
 Two random values are generated per message — a salt and a nonce — and both
@@ -189,26 +182,27 @@ scheme cannot express — a different layout, or a different AAD rule.
 
 ## 7. Decryption, and one ordering problem
 
+Decryption runs in three phases, and the order is the whole point:
+
 ```mermaid
-flowchart TD
-    A["Base64 string"] --> B["Strip whitespace"]
-    B --> C{"Valid base64<br/>and >= 54 bytes?"}
-    C -->|no| X1["Not an FL2601 message"]
-    C -->|yes| D{"Magic == FL26?"}
-    D -->|no| X1
-    D -->|yes| E{"Version == 1?"}
-    E -->|no| X2["Unsupported version"]
-    E -->|yes| F{"Known KDF id?"}
-    F -->|no| X3["Unknown KDF"]
-    F -->|yes| G{"Iterations in<br/>10,000 - 10,000,000?"}
-    G -->|no| X4["Implausible iteration count"]
-    G -->|yes| H["Derive key<br/>~70 ms"]
-    H --> I{"GCM tag valid?"}
-    I -->|no| X5["Decryption failed"]
-    I -->|yes| J{"Valid UTF-8?"}
-    J -->|no| X5
-    J -->|yes| K["Plaintext"]
+flowchart LR
+    A["Parse and validate<br/>the header<br/>(microseconds)"] --> B["Derive the key<br/>(~70 ms)"]
+    B --> C["Verify the tag,<br/>decode UTF-8"] --> D["Plaintext"]
 ```
+
+Every check that can be made cheaply is made before the expensive step. In
+order:
+
+| # | Gate | Failure |
+| --- | --- | --- |
+| 1 | Decodes as base64, at least 54 bytes | Not an FL2601 message |
+| 2 | Bytes 0–3 are `FL26` | Not an FL2601 message |
+| 3 | Byte 4 is a known version | Unsupported version *N* |
+| 4 | Byte 5 is a known KDF identifier | Unknown KDF *N* |
+| 5 | Bytes 6–9 fall in 10,000–10,000,000 | Implausible iteration count |
+| — | **Key derivation runs here** | — |
+| 6 | GCM tag verifies | Decryption failed |
+| 7 | Plaintext is valid UTF-8 | Decryption failed |
 
 Whitespace is stripped before decoding, so base64 that an email client wrapped
 across lines still pastes cleanly. This mirrors what browsers' `atob` does.
