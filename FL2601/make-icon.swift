@@ -1,21 +1,30 @@
 #!/usr/bin/env swift
 //
-// Generates the FL2601 app icon set: a terminal prompt in phosphor green on a
-// near-black squircle, matching the app's palette.
+// Generates the FL2601 app icon set by downscaling the 1024px master to each
+// size macOS asks for.
 //
-// Usage: swift make-icon.swift <output-appiconset-dir>
+// The master already sits on Apple's icon grid — the art occupies ~81% of the
+// canvas and the surrounding margin is transparent — so this only resamples.
+// Do not inset it again here.
+//
+// Usage: swift make-icon.swift [output-appiconset-dir] [master-png]
 //
 import AppKit
 import Foundation
 
-let outputDir = CommandLine.arguments.count > 1
-    ? URL(fileURLWithPath: CommandLine.arguments[1])
+let args = CommandLine.arguments
+
+let outputDir = args.count > 1
+    ? URL(fileURLWithPath: args[1])
     : URL(fileURLWithPath: "FL2601/Assets.xcassets/AppIcon.appiconset")
 
-// Palette, lifted from Theme.swift.
-let panel = NSColor(srgbRed: 0x11 / 255.0, green: 0x11 / 255.0, blue: 0x11 / 255.0, alpha: 1)
-let green = NSColor(srgbRed: 0x33 / 255.0, green: 0xFF / 255.0, blue: 0x33 / 255.0, alpha: 1)
-let greenLo = NSColor(srgbRed: 0x1A / 255.0, green: 0x6B / 255.0, blue: 0x1A / 255.0, alpha: 1)
+let masterPath = args.count > 2
+    ? URL(fileURLWithPath: args[2])
+    : URL(fileURLWithPath: "icon-master.png")
+
+guard let master = NSImage(contentsOf: masterPath) else {
+    fatalError("Could not read master icon at \(masterPath.path)")
+}
 
 func render(size: CGFloat) -> Data {
     // Draw into an explicitly sized bitmap rather than NSImage.lockFocus():
@@ -44,48 +53,15 @@ func render(size: CGFloat) -> Data {
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
     NSGraphicsContext.current?.imageInterpolation = .high
 
-    // Apple's macOS icon grid: the art occupies ~80% of the canvas with a
-    // corner radius of ~22% of the art's width.
-    let inset = size * 0.1
-    let artSize = size - inset * 2
-    let rect = NSRect(x: inset, y: inset, width: artSize, height: artSize)
-    let radius = artSize * 0.2237
-
-    let squircle = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
-
-    panel.setFill()
-    squircle.fill()
-
-    greenLo.setStroke()
-    squircle.lineWidth = max(1, size * 0.008)
-    squircle.stroke()
-
-    // ">_" — a shell prompt. Drawn with paths rather than text so it stays
-    // crisp at 16pt and does not depend on a font being installed.
-    let stroke = artSize * 0.075
-    green.setStroke()
-
-    let chevron = NSBezierPath()
-    chevron.lineWidth = stroke
-    chevron.lineCapStyle = .round
-    chevron.lineJoinStyle = .round
-    let cx = rect.minX + artSize * 0.30
-    let cyMid = rect.midY + artSize * 0.045
-    let armH = artSize * 0.15
-    let armW = artSize * 0.13
-    chevron.move(to: NSPoint(x: cx - armW / 2, y: cyMid + armH))
-    chevron.line(to: NSPoint(x: cx + armW / 2, y: cyMid))
-    chevron.line(to: NSPoint(x: cx - armW / 2, y: cyMid - armH))
-    chevron.stroke()
-
-    // Underscore cursor.
-    let cursor = NSBezierPath()
-    cursor.lineWidth = stroke
-    cursor.lineCapStyle = .round
-    let uy = cyMid - armH
-    cursor.move(to: NSPoint(x: rect.minX + artSize * 0.50, y: uy))
-    cursor.line(to: NSPoint(x: rect.minX + artSize * 0.74, y: uy))
-    cursor.stroke()
+    let rect = NSRect(x: 0, y: 0, width: size, height: size)
+    master.draw(
+        in: rect,
+        from: .zero,
+        operation: .copy,
+        fraction: 1.0,
+        respectFlipped: true,
+        hints: [.interpolation: NSImageInterpolation.high.rawValue]
+    )
 
     guard let png = rep.representation(using: .png, properties: [:]) else {
         fatalError("Failed to encode \(pixels)px icon")
