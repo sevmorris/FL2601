@@ -9,6 +9,8 @@
   <a href="https://github.com/sevmorris/FL2601/releases/latest/download/FL2601-Cipher-Tool-1.1.1.dmg"><strong>Download Latest (DMG)</strong></a>
   ·
   <a href="https://sevmorris.github.io/FL2601/">Theory of Operation</a>
+  ·
+  <a href="https://github.com/sevmorris/FL2601-Windows">Windows Version</a>
 </p>
 
 A small macOS app that encrypts text with a passphrase. Paste in a message,
@@ -31,6 +33,10 @@ preferences, no autosave, no recent-documents list. Text goes in through the
 window, and out through the clipboard.
 
 Requires macOS 15.0 or later. Universal — Apple silicon and Intel.
+
+There is a [Windows port](https://github.com/sevmorris/FL2601-Windows) for
+Windows 10 and later. Messages are byte-for-byte compatible between the two: a
+message encrypted on one platform decrypts on the other without conversion.
 
 ## Install
 
