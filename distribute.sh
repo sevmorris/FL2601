@@ -101,6 +101,23 @@ if [ "$BUMP_CASK" = true ]; then
     DMG_SHA256=$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')
     [ -n "$DMG_SHA256" ] || { echo "Could not hash $DMG_PATH" >&2; exit 1; }
 
+    # The cask points at a release asset. Publishing it before that asset
+    # exists leaves every `brew install` 404ing until the release goes up, so
+    # confirm the URL resolves first and stop short rather than publish a
+    # broken cask.
+    ASSET_URL="https://github.com/sevmorris/FL2601/releases/download/v${VERSION}/$(basename "$DMG_PATH")"
+    if ! curl -fsIL --max-time 20 -o /dev/null "$ASSET_URL"; then
+        echo
+        echo "Release asset is not published yet:" >&2
+        echo "  $ASSET_URL" >&2
+        echo >&2
+        echo "The DMG is built and notarized. Publish the release first:" >&2
+        echo "  gh release create v${VERSION} \"$DMG_PATH\"" >&2
+        echo >&2
+        echo "then re-run with --bump-cask. Not publishing a cask that would 404." >&2
+        exit 1
+    fi
+
     TAP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/homebrew-tap.XXXXXX")
     # SSH rather than the gh CLI's HTTPS default, so the push uses the same key
     # as everything else here instead of prompting for credentials.
