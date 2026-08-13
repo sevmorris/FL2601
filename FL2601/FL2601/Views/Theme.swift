@@ -12,6 +12,14 @@ enum Theme {
     static let resultBackground = Color(hex: 0x050505)
     static let error = Color(hex: 0xFF4444)
 
+    /// Amber for the middle band of the strength meter. Red and green alone
+    /// would force every passphrase into pass or fail, and most sit between.
+    static let caution = Color(hex: 0xE0A02A)
+
+    /// Fill for the payload map's segments, lifted off the panel enough to read
+    /// as a distinct surface.
+    static let panelRaised = Color(hex: 0x1A1F18)
+
     // Greys lifted from the original stylesheet's values. Against the #111
     // panel the inactive tab was at 2.5:1 and the footnote at 3.3:1, both under
     // the 4.5:1 needed for body text; they now sit at 5.5:1 and 4.7:1. Field

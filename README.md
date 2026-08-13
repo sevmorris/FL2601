@@ -81,6 +81,13 @@ fails to decrypt, so there is nothing for a second field to catch.
 Text pasted back in may carry line breaks, indentation, or stray whitespace —
 from an email client that wrapped or quoted it, for example. That is handled.
 
+While encrypting, the app estimates the entropy of your passphrase, since that
+is the one variable you control and the one the maths cannot compensate for.
+The estimate counts character variety and length only — it will overrate a
+common phrase, and it is an upper bound rather than a promise. After either
+operation it shows what the payload is made of: 54 bytes of framing that anyone
+can read, and the rest your message, encrypted.
+
 **There is no passphrase recovery.** The passphrase is never stored anywhere,
 by design. If you lose it, the message is gone. That is the point of the tool,
 and it applies to you as much as to anyone else.

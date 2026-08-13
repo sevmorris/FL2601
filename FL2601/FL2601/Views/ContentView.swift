@@ -6,6 +6,10 @@ struct ContentView: View {
     /// Space between the panel and the window edge, top and bottom.
     private static let verticalInset: CGFloat = 32
 
+    /// Extra room at the top for the traffic lights, which float over the
+    /// content once the title bar is hidden.
+    private static let titleBarInset: CGFloat = 24
+
     var body: some View {
         GeometryReader { proxy in
             ScrollView {
@@ -17,11 +21,15 @@ struct ContentView: View {
                     // moves when the mode changes.
                     .frame(
                         maxWidth: 800,
-                        minHeight: max(0, proxy.size.height - Self.verticalInset * 2),
+                        minHeight: max(
+                            0,
+                            proxy.size.height - Self.verticalInset * 2 - Self.titleBarInset
+                        ),
                         alignment: .top
                     )
                     .padding(.horizontal, 16)
-                    .padding(.vertical, Self.verticalInset)
+                    .padding(.top, Self.verticalInset + Self.titleBarInset)
+                    .padding(.bottom, Self.verticalInset)
                     .frame(maxWidth: .infinity)
             }
             // Still scrollable, so shrinking the window past the point where
@@ -49,7 +57,11 @@ struct ContentView: View {
                 .padding(.bottom, 24)
 
             VStack(alignment: .leading, spacing: 8) {
-                FieldLabel(text: model.mode.inputLabel)
+                HStack(spacing: 12) {
+                    FieldLabel(text: model.mode.inputLabel)
+                    Spacer()
+                    inputCounter
+                }
                 TerminalTextEditor(prompt: model.mode.inputPrompt, text: $model.inputText)
             }
             .frame(maxHeight: .infinity)
@@ -57,10 +69,8 @@ struct ContentView: View {
 
             actions
 
-            if model.showResult {
-                resultSection
-                    .padding(.top, 32)
-            }
+            outputSection
+                .padding(.top, 32)
 
             statusLine
 
@@ -77,6 +87,10 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 8) {
                 FieldLabel(text: "Access Password")
                 TerminalSecureField(prompt: "Enter password...", text: $model.password)
+                // Belongs to the field above, not floating between the two.
+                if model.requiresConfirmation {
+                    StrengthMeter(estimate: model.passphraseStrength)
+                }
             }
 
             if model.requiresConfirmation {
@@ -147,6 +161,31 @@ struct ContentView: View {
         }
     }
 
+    private var inputCounter: some View {
+        Text(model.inputText.isEmpty
+             ? ""
+             : "\(model.inputCharacterCount.formatted()) chars · \(model.inputByteCount.formatted()) bytes")
+            .font(Theme.mono(Theme.Size.micro))
+            .foregroundStyle(Theme.footnote)
+            .monospacedDigit()
+    }
+
+    /// Always present. Before there is a result it shows a waiting prompt, so
+    /// the space reads as a terminal at rest rather than a gap in the layout.
+    @ViewBuilder
+    private var outputSection: some View {
+        if model.showResult {
+            resultSection
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                FieldLabel(text: "Result")
+                IdlePrompt()
+                    .background(Theme.resultBackground)
+                    .overlay(Rectangle().strokeBorder(Theme.border, lineWidth: 1))
+            }
+        }
+    }
+
     private var resultSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -171,6 +210,11 @@ struct ContentView: View {
             .fixedSize(horizontal: false, vertical: true)
             .background(Theme.resultBackground)
             .overlay(Rectangle().strokeBorder(Theme.greenLo, lineWidth: 1))
+
+            if let info = model.payloadInfo {
+                PayloadMap(info: info)
+                    .padding(.top, 4)
+            }
         }
     }
 
@@ -200,7 +244,7 @@ struct ContentView: View {
             .foregroundStyle(Theme.footnote)
             .lineSpacing(4)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.top, 48)
+            .padding(.top, 24)
     }
 }
 

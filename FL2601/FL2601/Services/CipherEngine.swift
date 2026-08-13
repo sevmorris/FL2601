@@ -100,11 +100,36 @@ enum CipherError: LocalizedError, Equatable {
     }
 }
 
+/// What a payload declares about itself, readable without the passphrase.
+///
+/// Everything here comes from the header and the block's length, so obtaining it
+/// costs nothing and reveals nothing the ciphertext was hiding: an observer
+/// could compute the same figures from the base64 alone.
+struct PayloadInfo: Equatable, Sendable {
+    let totalBytes: Int
+    let version: UInt8
+    let kdf: KDFIdentifier
+    let iterations: UInt32
+    let saltBytes: Int
+    let nonceBytes: Int
+    let ciphertextBytes: Int
+    let tagBytes: Int
+
+    /// AES-GCM is a stream cipher construction, so ciphertext and plaintext are
+    /// the same length. This is exact, not an estimate.
+    var plaintextBytes: Int { ciphertextBytes }
+}
+
 /// PBKDF2-HMAC-SHA256 + AES-256-GCM.
 ///
 /// An `actor` rather than a namespace: key derivation is hundreds of thousands
 /// of HMAC rounds and must not run on the main thread.
 actor CipherEngine {
+
+    /// Reads a payload's header without deriving a key or decrypting anything.
+    nonisolated static func inspect(_ ciphertext: String) throws -> PayloadInfo {
+        try parse(ciphertext).info
+    }
     func encrypt(
         _ plaintext: String,
         password: String,
@@ -127,7 +152,11 @@ actor CipherEngine {
         return (header + salt + combined).base64EncodedString()
     }
 
-    func decrypt(_ ciphertext: String, password: String) throws -> String {
+    /// Header parsing, shared by `decrypt` and `inspect` so the two can never
+    /// disagree about where a field begins.
+    private nonisolated static func parse(
+        _ ciphertext: String
+    ) throws -> (info: PayloadInfo, header: Data, salt: Data, sealed: Data) {
         // Accept either an armored block or bare base64. The envelope is only a
         // hint about where the payload starts; nothing in it is trusted, and
         // input without one is passed through untouched.
@@ -161,14 +190,35 @@ actor CipherEngine {
             throw CipherError.implausibleIterations(iterations)
         }
 
-        let header = Data(bytes[0 ..< CipherFormat.headerLength])
-        let salt = Data(bytes[CipherFormat.headerLength ..< (CipherFormat.headerLength + CipherFormat.saltLength)])
-        let sealedBytes = Data(bytes[(CipherFormat.headerLength + CipherFormat.saltLength)...])
+        let saltStart = CipherFormat.headerLength
+        let nonceStart = saltStart + CipherFormat.saltLength
+
+        let info = PayloadInfo(
+            totalBytes: bytes.count,
+            version: bytes[4],
+            kdf: kdf,
+            iterations: iterations,
+            saltBytes: CipherFormat.saltLength,
+            nonceBytes: CipherFormat.nonceLength,
+            ciphertextBytes: bytes.count - CipherFormat.minimumPayloadLength,
+            tagBytes: CipherFormat.tagLength
+        )
+
+        return (
+            info,
+            Data(bytes[0 ..< CipherFormat.headerLength]),
+            Data(bytes[saltStart ..< nonceStart]),
+            Data(bytes[nonceStart...])
+        )
+    }
+
+    func decrypt(_ ciphertext: String, password: String) throws -> String {
+        let (info, header, salt, sealedBytes) = try Self.parse(ciphertext)
 
         let key: SymmetricKey
-        switch kdf {
+        switch info.kdf {
         case .pbkdf2HMACSHA256:
-            key = try Self.deriveKey(password: password, salt: salt, iterations: iterations)
+            key = try Self.deriveKey(password: password, salt: salt, iterations: info.iterations)
         }
 
         let plaintext: Data

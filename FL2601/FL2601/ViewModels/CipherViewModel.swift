@@ -77,6 +77,7 @@ final class CipherViewModel {
             // Hide output when switching modes to avoid confusion.
             showResult = false
             status = .idle
+            payloadInfo = nil
             // Decrypt has no confirmation field; drop the value rather than
             // leave it to reappear stale when the user switches back.
             confirmPassword = ""
@@ -111,6 +112,26 @@ final class CipherViewModel {
         return password == confirmPassword
     }
 
+    /// Structure of the payload most recently produced or read. Populated from
+    /// the header alone, so it costs nothing and discloses nothing.
+    private(set) var payloadInfo: PayloadInfo?
+
+    /// Only shown while encrypting. When decrypting you are typing a passphrase
+    /// that already exists, and rating it would be noise.
+    var passphraseStrength: PassphraseStrength.Estimate? {
+        guard requiresConfirmation else { return nil }
+        return PassphraseStrength.estimate(password)
+    }
+
+    var inputCharacterCount: Int { inputText.count }
+    var inputByteCount: Int { inputText.utf8.count }
+
+    /// What the app is actually doing, named rather than described as
+    /// "processing". The pause has a cause and the cause is interesting.
+    var workingDescription: String {
+        "deriving key · \(CipherFormat.defaultIterations.formatted()) rounds · PBKDF2-HMAC-SHA256"
+    }
+
     private let engine = CipherEngine()
     private var copyResetTask: Task<Void, Never>?
 
@@ -128,7 +149,7 @@ final class CipherViewModel {
         }
 
         isProcessing = true
-        status = .working("Processing...")
+        status = .working(workingDescription)
         defer { isProcessing = false }
 
         let mode = mode
@@ -137,16 +158,23 @@ final class CipherViewModel {
 
         do {
             let output: String
+            let inspected: String
             switch mode {
             case .encrypt:
                 // The engine returns the payload; the envelope is added here
                 // because it is presentation, not format.
                 let payload = try await engine.encrypt(inputText, password: password)
                 output = MessageArmor.wrap(payload)
+                inspected = payload
             case .decrypt:
                 output = try await engine.decrypt(inputText, password: password)
+                // Report the structure of what was read, not of the plaintext.
+                inspected = inputText
             }
             result = output
+            // Never let a failure to describe the payload sink a successful
+            // operation: this is a readout, not part of the result.
+            payloadInfo = try? CipherEngine.inspect(inspected)
             showResult = true
             status = .ok(mode.successMessage)
         } catch {
@@ -159,6 +187,7 @@ final class CipherViewModel {
         confirmPassword = ""
         inputText = ""
         result = ""
+        payloadInfo = nil
         showResult = false
         status = .idle
     }
@@ -184,6 +213,7 @@ final class CipherViewModel {
             ?? error.localizedDescription
         status = .failed(message)
         result = ""
+        payloadInfo = nil
         showResult = false
     }
 }
