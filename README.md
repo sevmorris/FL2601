@@ -4,9 +4,9 @@
 <p align="center">
   <strong>PBKDF2 + AES-256-GCM, entirely offline</strong>
   <br />
-  <strong>Version:</strong> 1.1.1
+  <strong>Version:</strong> 1.2
   <br />
-  <a href="https://github.com/sevmorris/FL2601/releases/latest/download/FL2601-Cipher-Tool-1.1.1.dmg"><strong>Download Latest (DMG)</strong></a>
+  <a href="https://github.com/sevmorris/FL2601/releases/latest/download/FL2601-Cipher-Tool-1.2.dmg"><strong>Download Latest (DMG)</strong></a>
   ·
   <a href="https://sevmorris.github.io/FL2601/">Theory of Operation</a>
   ·
