@@ -685,6 +685,31 @@
           </div>
         </div>
         <p>Everything below follows from those three requirements.</p>
+
+        <h3>Terms used here</h3>
+        <p>
+          Four words describe closely related things, and the rest of this
+          document keeps them distinct.
+        </p>
+        <div class="scroller">
+          <table>
+            <thead>
+              <tr><th scope="col">Term</th><th scope="col">Means</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>message</td><td>Your plaintext, before or after the round trip</td></tr>
+              <tr><td>ciphertext</td><td>The encrypted bytes alone, without any framing</td></tr>
+              <tr><td>payload</td><td>The complete framed structure: header, salt, nonce, ciphertext, tag</td></tr>
+              <tr><td>block</td><td>The payload base64-encoded inside its <code>BEGIN</code>/<code>END</code> envelope &mdash; what you copy and paste</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          <em>Passphrase</em>, not password, throughout &mdash; including in the
+          app itself. The distinction is not cosmetic: the work factor cannot
+          compensate for a short secret, and the word you use for the field
+          shapes what people type into it.
+        </p>
       </section>
 
       <section id="pipeline">
@@ -736,7 +761,7 @@
           single derivation takes roughly 70&nbsp;ms on Apple silicon &mdash; unnoticeable
           when you press a button once, and a 600,000&times; multiplier on the cost of a
           brute-force search. That figure is
-          <a href="https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html">OWASP's current floor</a>
+          <a href="https://cheatsheetseries.owasp.org/cheatsheets/Passphrase_Storage_Cheat_Sheet.html">OWASP's current floor</a>
           for PBKDF2-HMAC-SHA256.
         </p>
         <h3>Why not something better</h3>
@@ -898,7 +923,7 @@ xSZPuCR0Ri1MyqOmw/nzm1TAeyZWjlkb/6KnTZkRUpFmVoc=
             100,000 to 600,000 would have made every previously encrypted message
             permanently unreadable &mdash; the same passphrase and the same salt deriving a
             different key, the tag check failing, and the app reporting
-            <em>&ldquo;Decryption failed. Check password and ciphertext.&rdquo;</em> on a message
+            <em>&ldquo;Decryption failed. Check passphrase and ciphertext.&rdquo;</em> on a message
             with the correct passphrase.
           </p>
           <p>
@@ -983,7 +1008,7 @@ xSZPuCR0Ri1MyqOmw/nzm1TAeyZWjlkb/6KnTZkRUpFmVoc=
         <h3>Why failures are vague on purpose</h3>
         <p>
           Everything from the tag check onward reports the same message:
-          <em>Decryption failed. Check password and ciphertext.</em>
+          <em>Decryption failed. Check passphrase and ciphertext.</em>
         </p>
         <p>
           A wrong passphrase and a tampered message are the same event to AES-GCM. The

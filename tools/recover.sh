@@ -46,8 +46,8 @@ import Foundation
 
 // MARK: - Shared primitives
 
-func derive(_ password: String, salt: Data, iterations: UInt32) -> SymmetricKey? {
-    let pw = Array(password.utf8)
+func derive(_ passphrase: String, salt: Data, iterations: UInt32) -> SymmetricKey? {
+    let pw = Array(passphrase.utf8)
     var out = [UInt8](repeating: 0, count: 32)
     let status = pw.withUnsafeBytes { p in
         salt.withUnsafeBytes { s in
@@ -92,12 +92,12 @@ struct Attempt {
     let plaintext: String
 }
 
-func tryV1(_ blob: Data, _ password: String) -> Attempt? {
+func tryV1(_ blob: Data, _ passphrase: String) -> Attempt? {
     let b = [UInt8](blob)
     guard b.count >= 54, Array(b[0 ..< 4]) == Array("FL26".utf8) else { return nil }
     let iterations = b[6 ... 9].reduce(UInt32(0)) { ($0 << 8) | UInt32($1) }
     guard iterations >= 1, iterations <= 20_000_000 else { return nil }
-    guard let key = derive(password, salt: Data(b[10 ..< 26]), iterations: iterations) else { return nil }
+    guard let key = derive(passphrase, salt: Data(b[10 ..< 26]), iterations: iterations) else { return nil }
     guard let box = try? AES.GCM.SealedBox(combined: Data(b[26...])),
           let pt = try? AES.GCM.open(box, using: key, authenticating: Data(b[0 ..< 10])),
           let s = String(data: pt, encoding: .utf8)
@@ -105,10 +105,10 @@ func tryV1(_ blob: Data, _ password: String) -> Attempt? {
     return Attempt(label: "v1 (\(iterations) iterations, header authenticated)", plaintext: s)
 }
 
-func tryLegacy(_ blob: Data, _ password: String, _ iterations: UInt32) -> Attempt? {
+func tryLegacy(_ blob: Data, _ passphrase: String, _ iterations: UInt32) -> Attempt? {
     let b = [UInt8](blob)
     guard b.count >= 44 else { return nil }
-    guard let key = derive(password, salt: Data(b[0 ..< 16]), iterations: iterations) else { return nil }
+    guard let key = derive(passphrase, salt: Data(b[0 ..< 16]), iterations: iterations) else { return nil }
     guard let box = try? AES.GCM.SealedBox(combined: Data(b[16...])),
           let pt = try? AES.GCM.open(box, using: key),
           let s = String(data: pt, encoding: .utf8)
@@ -156,15 +156,15 @@ if mode == "inspect" {
 }
 
 // mode == "try": passphrase arrives on stdin so it never reaches the argv list.
-guard let password = readLine(strippingNewline: true), !password.isEmpty else {
+guard let passphrase = readLine(strippingNewline: true), !passphrase.isEmpty else {
     print("  No passphrase supplied.")
     exit(1)
 }
 
 var attempts: [Attempt] = []
-if let a = tryV1(blob, password) { attempts.append(a) }
+if let a = tryV1(blob, passphrase) { attempts.append(a) }
 for iterations in [UInt32(100_000), 600_000, 10_000, 250_000] {
-    if let a = tryLegacy(blob, password, iterations) { attempts.append(a); break }
+    if let a = tryLegacy(blob, passphrase, iterations) { attempts.append(a); break }
 }
 
 guard let hit = attempts.first else {

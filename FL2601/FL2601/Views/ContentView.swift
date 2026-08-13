@@ -53,7 +53,7 @@ struct ContentView: View {
             TabNav(selection: $model.mode)
                 .padding(.bottom, 24)
 
-            passwordFields
+            passphraseFields
                 .padding(.bottom, 24)
 
             VStack(alignment: .leading, spacing: 8) {
@@ -82,11 +82,11 @@ struct ContentView: View {
         .shadow(color: .black.opacity(0.5), radius: 15, y: 10)
     }
 
-    private var passwordFields: some View {
+    private var passphraseFields: some View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 8) {
-                FieldLabel(text: "Access Password")
-                TerminalSecureField(prompt: "Enter password...", text: $model.password)
+                FieldLabel(text: "Access Passphrase")
+                TerminalSecureField(prompt: "Enter passphrase...", text: $model.passphrase)
                 // Belongs to the field above, not floating between the two.
                 if model.requiresConfirmation {
                     StrengthMeter(estimate: model.passphraseStrength)
@@ -96,11 +96,11 @@ struct ContentView: View {
             if model.requiresConfirmation {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 12) {
-                        FieldLabel(text: "Confirm Password")
+                        FieldLabel(text: "Confirm Passphrase")
                         Spacer()
                         confirmationIndicator
                     }
-                    TerminalSecureField(prompt: "Re-enter password...", text: $model.confirmPassword)
+                    TerminalSecureField(prompt: "Re-enter passphrase...", text: $model.confirmPassphrase)
                 }
             }
         }
@@ -114,12 +114,12 @@ struct ContentView: View {
             Text("[ MATCH ]")
                 .font(Theme.mono(Theme.Size.label, weight: .bold))
                 .foregroundStyle(Theme.green)
-                .accessibilityLabel("Passwords match")
+                .accessibilityLabel("Passphrases match")
         case .mismatch:
             Text("[ NO MATCH ]")
                 .font(Theme.mono(Theme.Size.label, weight: .bold))
                 .foregroundStyle(Theme.error)
-                .accessibilityLabel("Passwords do not match")
+                .accessibilityLabel("Passphrases do not match")
         case .pending, .notShown:
             EmptyView()
         }

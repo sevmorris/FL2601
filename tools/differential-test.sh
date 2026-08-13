@@ -32,12 +32,12 @@ do {
     switch args[0] {
     case "encrypt":
         if args.count > 3, let iterations = UInt32(args[3]) {
-            print(try await engine.encrypt(args[2], password: args[1], iterations: iterations))
+            print(try await engine.encrypt(args[2], passphrase: args[1], iterations: iterations))
         } else {
-            print(try await engine.encrypt(args[2], password: args[1]))
+            print(try await engine.encrypt(args[2], passphrase: args[1]))
         }
     case "decrypt":
-        print(try await engine.decrypt(args[2], password: args[1]))
+        print(try await engine.decrypt(args[2], passphrase: args[1]))
     default:
         fatalError("unknown mode")
     }
@@ -53,7 +53,7 @@ swiftc -O "$ARMOR_SRC" "$ENGINE_SRC" "$WORK_DIR/main.swift" -o "$WORK_DIR/engine
 
 E="$WORK_DIR/engine"
 JS=(node "$REFERENCE")
-DECRYPT_ERR='ERROR: Decryption failed. Check password and ciphertext.'
+DECRYPT_ERR='ERROR: Decryption failed. Check passphrase and ciphertext.'
 MALFORMED_ERR='ERROR: This does not look like an FL2601 message.'
 
 pass=0
@@ -168,7 +168,7 @@ fi
 
 echo
 echo "== Authentication failures =="
-check "wrong password"      "$DECRYPT_ERR" "$($E decrypt 'nope' "$CT" 2>&1 >/dev/null)"
+check "wrong passphrase"      "$DECRYPT_ERR" "$($E decrypt 'nope' "$CT" 2>&1 >/dev/null)"
 if [ "${CT: -2:1}" = "A" ]; then FLIP="B"; else FLIP="A"; fi
 check "tampered ciphertext" "$DECRYPT_ERR" "$($E decrypt 'hunter2' "${CT:0:${#CT}-2}$FLIP${CT: -1}" 2>&1 >/dev/null)"
 

@@ -43,43 +43,43 @@ func run() async {
     check("status idle", vm.status == .idle)
 
     print("\n== Validation ==")
-    vm.password = ""
+    vm.passphrase = ""
     vm.inputText = "something"
-    check("submit disabled without password", !vm.canSubmit)
+    check("submit disabled without passphrase", !vm.canSubmit)
     await vm.process()
-    check("password required error", vm.status == .failed("Password required."), "got \(vm.status)")
+    check("passphrase required error", vm.status == .failed("Passphrase required."), "got \(vm.status)")
 
-    vm.password = "pw"
-    vm.confirmPassword = "pw"
+    vm.passphrase = "pw"
+    vm.confirmPassphrase = "pw"
     vm.inputText = ""
     check("submit disabled without input", !vm.canSubmit)
     await vm.process()
     check("input required error", vm.status == .failed("Input text required."), "got \(vm.status)")
 
-    print("\n== Password confirmation (encrypt only) ==")
+    print("\n== Passphrase confirmation (encrypt only) ==")
     vm.clearAll()
     vm.inputText = "secret plans"
     check("confirmation required in encrypt mode", vm.requiresConfirmation)
     check("indicator pending while confirm empty", vm.confirmation == .pending)
 
-    vm.password = "s3cret"
-    check("still pending with only password typed", vm.confirmation == .pending)
+    vm.passphrase = "s3cret"
+    check("still pending with only passphrase typed", vm.confirmation == .pending)
     check("submit blocked until confirmed", !vm.canSubmit)
 
-    vm.confirmPassword = "s3cr"
+    vm.confirmPassphrase = "s3cr"
     check("partial entry reads as mismatch", vm.confirmation == .mismatch)
     check("submit blocked on mismatch", !vm.canSubmit)
     await vm.process()
-    check("mismatch error", vm.status == .failed("Passwords do not match."), "got \(vm.status)")
+    check("mismatch error", vm.status == .failed("Passphrases do not match."), "got \(vm.status)")
     check("nothing encrypted on mismatch", !vm.showResult)
 
-    vm.confirmPassword = "s3cret"
+    vm.confirmPassphrase = "s3cret"
     check("indicator reports match", vm.confirmation == .match)
     check("submit enabled once matched", vm.canSubmit)
 
     print("\n== Encrypt flow ==")
-    vm.password = "s3cret"
-    vm.confirmPassword = "s3cret"
+    vm.passphrase = "s3cret"
+    vm.confirmPassphrase = "s3cret"
     vm.inputText = "Attack at dawn — 🌅"
     check("submit enabled when both filled", vm.canSubmit)
     await vm.process()
@@ -138,11 +138,11 @@ func run() async {
     check("labels follow mode", vm.mode.inputLabel == "Ciphertext (Base64)")
     check("action title follows mode", vm.mode.actionTitle == "Decrypt Text")
     check("no confirmation when decrypting", !vm.requiresConfirmation)
-    check("confirmation value discarded", vm.confirmPassword.isEmpty)
+    check("confirmation value discarded", vm.confirmPassphrase.isEmpty)
     check("indicator hidden", vm.confirmation == .notShown)
 
     print("\n== Decrypt flow ==")
-    vm.password = "s3cret"
+    vm.passphrase = "s3cret"
     vm.inputText = ciphertext
     check("decrypt submits without a confirmation", vm.canSubmit)
     await vm.process()
@@ -160,11 +160,11 @@ func run() async {
     await vm.process()
     check("indented block still decrypts", vm.result == "Attack at dawn — 🌅", "got \(vm.result)")
 
-    print("\n== Wrong password ==")
-    vm.password = "wrong"
+    print("\n== Wrong passphrase ==")
+    vm.passphrase = "wrong"
     vm.inputText = ciphertext
     await vm.process()
-    check("status failed", vm.status == .failed("Decryption failed. Check password and ciphertext."), "got \(vm.status)")
+    check("status failed", vm.status == .failed("Decryption failed. Check passphrase and ciphertext."), "got \(vm.status)")
     check("result hidden on failure", !vm.showResult)
     check("stale result cleared", vm.result.isEmpty)
     check("stale payload readout cleared", vm.payloadInfo == nil)
@@ -183,14 +183,14 @@ func run() async {
           && (PassphraseStrength.estimate(String(repeating: "Aa1!", count: 40))?.fraction ?? 0) <= 1)
     // Rated only while encrypting; when decrypting the passphrase already exists.
     vm.mode = .encrypt
-    vm.password = "abc"
+    vm.passphrase = "abc"
     check("rated in encrypt mode", vm.passphraseStrength != nil)
     vm.mode = .decrypt
-    vm.password = "abc"
+    vm.passphrase = "abc"
     check("not rated in decrypt mode", vm.passphraseStrength == nil)
 
     print("\n== Copy to clipboard ==")
-    vm.password = "s3cret"
+    vm.passphrase = "s3cret"
     vm.inputText = ciphertext
     await vm.process()
     vm.copyResult()
@@ -200,11 +200,11 @@ func run() async {
 
     print("\n== Clear ==")
     vm.mode = .encrypt
-    vm.password = "s3cret"
-    vm.confirmPassword = "s3cret"
+    vm.passphrase = "s3cret"
+    vm.confirmPassphrase = "s3cret"
     vm.clearAll()
-    check("password cleared", vm.password.isEmpty)
-    check("confirmation cleared", vm.confirmPassword.isEmpty)
+    check("passphrase cleared", vm.passphrase.isEmpty)
+    check("confirmation cleared", vm.confirmPassphrase.isEmpty)
     check("input cleared", vm.inputText.isEmpty)
     check("result cleared", vm.result.isEmpty)
     check("payload readout cleared", vm.payloadInfo == nil)

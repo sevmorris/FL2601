@@ -61,7 +61,7 @@ final class CipherViewModel {
         }
     }
 
-    /// Whether the confirmation field currently agrees with the password.
+    /// Whether the confirmation field currently agrees with the passphrase.
     /// `notShown` while decrypting, `pending` until the user has typed
     /// something, so the UI does not flash a mismatch on the first keystroke.
     enum Confirmation {
@@ -80,12 +80,12 @@ final class CipherViewModel {
             payloadInfo = nil
             // Decrypt has no confirmation field; drop the value rather than
             // leave it to reappear stale when the user switches back.
-            confirmPassword = ""
+            confirmPassphrase = ""
         }
     }
 
-    var password = ""
-    var confirmPassword = ""
+    var passphrase = ""
+    var confirmPassphrase = ""
     var inputText = ""
     var result = ""
     var showResult = false
@@ -93,7 +93,7 @@ final class CipherViewModel {
     var isProcessing = false
     var didJustCopy = false
 
-    /// Only encryption confirms. When decrypting, a mistyped password simply
+    /// Only encryption confirms. When decrypting, a mistyped passphrase simply
     /// fails to decrypt, so a second field would add friction and catch
     /// nothing.
     var requiresConfirmation: Bool {
@@ -102,14 +102,14 @@ final class CipherViewModel {
 
     var confirmation: Confirmation {
         guard requiresConfirmation else { return .notShown }
-        if confirmPassword.isEmpty { return .pending }
-        return password == confirmPassword ? .match : .mismatch
+        if confirmPassphrase.isEmpty { return .pending }
+        return passphrase == confirmPassphrase ? .match : .mismatch
     }
 
     var canSubmit: Bool {
-        guard !isProcessing, !password.isEmpty, !inputText.isEmpty else { return false }
+        guard !isProcessing, !passphrase.isEmpty, !inputText.isEmpty else { return false }
         guard requiresConfirmation else { return true }
-        return password == confirmPassword
+        return passphrase == confirmPassphrase
     }
 
     /// Structure of the payload most recently produced or read. Populated from
@@ -120,7 +120,7 @@ final class CipherViewModel {
     /// that already exists, and rating it would be noise.
     var passphraseStrength: PassphraseStrength.Estimate? {
         guard requiresConfirmation else { return nil }
-        return PassphraseStrength.estimate(password)
+        return PassphraseStrength.estimate(passphrase)
     }
 
     var inputCharacterCount: Int { inputText.count }
@@ -138,11 +138,11 @@ final class CipherViewModel {
     func process() async {
         guard !isProcessing else { return }
 
-        guard !password.isEmpty else {
-            return fail(CipherError.passwordRequired)
+        guard !passphrase.isEmpty else {
+            return fail(CipherError.passphraseRequired)
         }
-        guard !requiresConfirmation || password == confirmPassword else {
-            return fail(CipherError.passwordMismatch)
+        guard !requiresConfirmation || passphrase == confirmPassphrase else {
+            return fail(CipherError.passphraseMismatch)
         }
         guard !inputText.isEmpty else {
             return fail(CipherError.inputRequired)
@@ -153,7 +153,7 @@ final class CipherViewModel {
         defer { isProcessing = false }
 
         let mode = mode
-        let password = password
+        let passphrase = passphrase
         let inputText = inputText
 
         do {
@@ -163,11 +163,11 @@ final class CipherViewModel {
             case .encrypt:
                 // The engine returns the payload; the envelope is added here
                 // because it is presentation, not format.
-                let payload = try await engine.encrypt(inputText, password: password)
+                let payload = try await engine.encrypt(inputText, passphrase: passphrase)
                 output = MessageArmor.wrap(payload)
                 inspected = payload
             case .decrypt:
-                output = try await engine.decrypt(inputText, password: password)
+                output = try await engine.decrypt(inputText, passphrase: passphrase)
                 // Report the structure of what was read, not of the plaintext.
                 inspected = inputText
             }
@@ -183,8 +183,8 @@ final class CipherViewModel {
     }
 
     func clearAll() {
-        password = ""
-        confirmPassword = ""
+        passphrase = ""
+        confirmPassphrase = ""
         inputText = ""
         result = ""
         payloadInfo = nil

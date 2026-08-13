@@ -4,7 +4,7 @@ import SwiftUI
 struct FL2601App: App {
     var body: some Scene {
         // A single window rather than a WindowGroup: this is a one-off utility,
-        // and multiple windows would each hold their own password in memory.
+        // and multiple windows would each hold their own passphrase in memory.
         Window("FL2601 Cipher Tool", id: "main") {
             ContentView()
         }

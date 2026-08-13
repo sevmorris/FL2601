@@ -7,8 +7,8 @@
 // itself — that is how the payload-length off-by-one was caught.
 //
 // Usage:
-//   node reference-impl.mjs encrypt <password> <plaintext> [iterations]
-//   node reference-impl.mjs decrypt <password> <ciphertext>
+//   node reference-impl.mjs encrypt <passphrase> <plaintext> [iterations]
+//   node reference-impl.mjs decrypt <passphrase> <ciphertext>
 
 const MAGIC = new Uint8Array([0x46, 0x4c, 0x32, 0x36]); // "FL26"
 const VERSION = 1;
@@ -36,9 +36,9 @@ function makeHeader(iterations) {
   return header;
 }
 
-async function deriveKey(password, salt, iterations, usage) {
+async function deriveKey(passphrase, salt, iterations, usage) {
   const keyMaterial = await crypto.subtle.importKey(
-    'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']
+    'raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']
   );
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
@@ -49,11 +49,11 @@ async function deriveKey(password, salt, iterations, usage) {
   );
 }
 
-async function encrypt(plaintext, password, iterations = DEFAULT_ITERATIONS) {
+async function encrypt(plaintext, passphrase, iterations = DEFAULT_ITERATIONS) {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_LEN));
   const nonce = crypto.getRandomValues(new Uint8Array(NONCE_LEN));
   const header = makeHeader(iterations);
-  const key = await deriveKey(password, salt, iterations, 'encrypt');
+  const key = await deriveKey(passphrase, salt, iterations, 'encrypt');
 
   // additionalData binds the header to the tag, matching CryptoKit's
   // `authenticating:` argument.
@@ -72,7 +72,7 @@ async function encrypt(plaintext, password, iterations = DEFAULT_ITERATIONS) {
   return Buffer.from(blob).toString('base64');
 }
 
-async function decrypt(ciphertext, password) {
+async function decrypt(ciphertext, passphrase) {
   const cleaned = ciphertext.replace(/\s+/g, '');
   const blob = new Uint8Array(Buffer.from(cleaned, 'base64'));
 
@@ -93,7 +93,7 @@ async function decrypt(ciphertext, password) {
   const nonce = blob.slice(HEADER_LEN + SALT_LEN, HEADER_LEN + SALT_LEN + NONCE_LEN);
   const sealed = blob.slice(HEADER_LEN + SALT_LEN + NONCE_LEN);
 
-  const key = await deriveKey(password, salt, iterations, 'decrypt');
+  const key = await deriveKey(passphrase, salt, iterations, 'decrypt');
   try {
     const plaintext = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: nonce, additionalData: header },
@@ -102,17 +102,17 @@ async function decrypt(ciphertext, password) {
     );
     return new TextDecoder().decode(plaintext);
   } catch {
-    throw new Error('Decryption failed. Check password and ciphertext.');
+    throw new Error('Decryption failed. Check passphrase and ciphertext.');
   }
 }
 
-const [mode, password, payload, iterations] = process.argv.slice(2);
+const [mode, passphrase, payload, iterations] = process.argv.slice(2);
 
 try {
   if (mode === 'encrypt') {
-    console.log(await encrypt(payload, password, iterations ? Number(iterations) : undefined));
+    console.log(await encrypt(payload, passphrase, iterations ? Number(iterations) : undefined));
   } else if (mode === 'decrypt') {
-    console.log(await decrypt(payload, password));
+    console.log(await decrypt(payload, passphrase));
   } else {
     throw new Error(`unknown mode: ${mode}`);
   }

@@ -59,8 +59,8 @@ enum KDFIdentifier: UInt8 {
 }
 
 enum CipherError: LocalizedError, Equatable {
-    case passwordRequired
-    case passwordMismatch
+    case passphraseRequired
+    case passphraseMismatch
     case inputRequired
     case malformedPayload
     case unsupportedVersion(UInt8)
@@ -73,10 +73,10 @@ enum CipherError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .passwordRequired:
-            "Password required."
-        case .passwordMismatch:
-            "Passwords do not match."
+        case .passphraseRequired:
+            "Passphrase required."
+        case .passphraseMismatch:
+            "Passphrases do not match."
         case .inputRequired:
             "Input text required."
         case .malformedPayload:
@@ -88,10 +88,10 @@ enum CipherError: LocalizedError, Equatable {
         case .implausibleIterations(let count):
             "Message declares \(count) iterations, outside the accepted range."
         case .decryptionFailed, .notUTF8:
-            // A wrong password and a tampered message are indistinguishable
+            // A wrong passphrase and a tampered message are indistinguishable
             // here by design: GCM authentication fails identically for both,
             // and guessing at which it was would only mislead.
-            "Decryption failed. Check password and ciphertext."
+            "Decryption failed. Check passphrase and ciphertext."
         case .keyDerivationFailed(let status):
             "Key derivation failed (\(status))."
         case .randomGenerationFailed(let status):
@@ -132,12 +132,12 @@ actor CipherEngine {
     }
     func encrypt(
         _ plaintext: String,
-        password: String,
+        passphrase: String,
         iterations: UInt32 = CipherFormat.defaultIterations
     ) throws -> String {
         let salt = try Self.randomBytes(count: CipherFormat.saltLength)
         let header = Self.makeHeader(kdf: .pbkdf2HMACSHA256, iterations: iterations)
-        let key = try Self.deriveKey(password: password, salt: salt, iterations: iterations)
+        let key = try Self.deriveKey(passphrase: passphrase, salt: salt, iterations: iterations)
 
         let sealed = try AES.GCM.seal(
             Data(plaintext.utf8),
@@ -212,13 +212,13 @@ actor CipherEngine {
         )
     }
 
-    func decrypt(_ ciphertext: String, password: String) throws -> String {
+    func decrypt(_ ciphertext: String, passphrase: String) throws -> String {
         let (info, header, salt, sealedBytes) = try Self.parse(ciphertext)
 
         let key: SymmetricKey
         switch info.kdf {
         case .pbkdf2HMACSHA256:
-            key = try Self.deriveKey(password: password, salt: salt, iterations: info.iterations)
+            key = try Self.deriveKey(passphrase: passphrase, salt: salt, iterations: info.iterations)
         }
 
         let plaintext: Data
@@ -250,21 +250,21 @@ actor CipherEngine {
 
     /// CryptoKit exposes no PBKDF2, so this drops to CommonCrypto.
     private static func deriveKey(
-        password: String,
+        passphrase: String,
         salt: Data,
         iterations: UInt32
     ) throws -> SymmetricKey {
-        let passwordBytes = Array(password.utf8)
+        let passphraseBytes = Array(passphrase.utf8)
         var derived = [UInt8](repeating: 0, count: 32)
         defer { derived.resetBytes() }
 
-        let status = passwordBytes.withUnsafeBytes { passwordRaw in
+        let status = passphraseBytes.withUnsafeBytes { passphraseRaw in
             salt.withUnsafeBytes { saltRaw in
                 derived.withUnsafeMutableBufferPointer { output in
                     CCKeyDerivationPBKDF(
                         CCPBKDFAlgorithm(kCCPBKDF2),
-                        passwordRaw.baseAddress?.assumingMemoryBound(to: CChar.self),
-                        passwordBytes.count,
+                        passphraseRaw.baseAddress?.assumingMemoryBound(to: CChar.self),
+                        passphraseBytes.count,
                         saltRaw.baseAddress?.assumingMemoryBound(to: UInt8.self),
                         salt.count,
                         CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
@@ -280,7 +280,7 @@ actor CipherEngine {
             throw CipherError.keyDerivationFailed(status)
         }
         // SymmetricKey copies the bytes, so zeroing `derived` on the way out is
-        // safe. The password itself cannot be wiped — Swift's String gives no
+        // safe. The passphrase itself cannot be wiped — Swift's String gives no
         // way to reach its storage — so this is a partial measure, not a
         // guarantee.
         return SymmetricKey(data: Data(derived))
