@@ -40,9 +40,17 @@ message encrypted on one platform decrypts on the other without conversion.
 
 ## Install
 
-Download the DMG from the [Releases](../../releases) page, open it, and drag
+```bash
+brew install --cask sevmorris/tap/fl2601
+```
+
+Or download the DMG from the [Releases](../../releases) page, open it, and drag
 the app to Applications. Builds are signed with a Developer ID certificate and
 notarized by Apple, so they open without a Gatekeeper warning.
+
+The app does not check for updates — it has no network entitlement and cannot.
+Installing through Homebrew means `brew upgrade` picks up new versions along
+with everything else.
 
 To build it yourself instead, see [Building](#building) below.
 
