@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Lock, Unlock, Copy, Check, AlertCircle } from 'lucide-react';
 import { encryptMessage, decryptMessage } from './crypto';
 
 function App() {
@@ -51,7 +50,6 @@ function App() {
 
     setIsProcessing(true);
     try {
-      // Small timeout to allow UI to update (show loading spinner if we wanted)
       await new Promise(resolve => setTimeout(resolve, 50));
       const ciphertext = await encryptMessage(encMessage, encPassphrase);
       setEncResult(ciphertext);
@@ -87,7 +85,7 @@ function App() {
     }
   };
 
-  const resetState = () => {
+  const handleClear = () => {
     setEncPassphrase('');
     setEncConfirm('');
     setEncMessage('');
@@ -103,148 +101,159 @@ function App() {
 
   return (
     <div className="app-container">
-      <header>
-        <h1>FL2601 Cipher</h1>
-        <p className="subtitle">Passphrase Text Encryption</p>
-      </header>
+      <div className="main-card">
+        <header>
+          <h1>FL2601 — CIPHER TOOL</h1>
+        </header>
 
-      <div className="tabs">
-        <button
-          className={`tab-btn ${activeTab === 'encrypt' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('encrypt'); setCopied(false); }}
-        >
-          Encrypt
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'decrypt' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('decrypt'); setCopied(false); }}
-        >
-          Decrypt
-        </button>
-      </div>
+        <div className="tabs">
+          <button
+            className={`tab-btn ${activeTab === 'encrypt' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('encrypt'); setCopied(false); }}
+          >
+            Encrypt
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'decrypt' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('decrypt'); setCopied(false); }}
+          >
+            Decrypt
+          </button>
+        </div>
 
-      <main>
-        {activeTab === 'encrypt' && (
-          <div className="tab-content">
-            <div className="form-group">
-              <label>Passphrase</label>
-              <input
-                type="password"
-                value={encPassphrase}
-                onChange={(e) => setEncPassphrase(e.target.value)}
-                placeholder="Enter passphrase"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label>Confirm Passphrase</label>
-              <input
-                type="password"
-                value={encConfirm}
-                onChange={(e) => setEncConfirm(e.target.value)}
-                placeholder="Confirm passphrase"
-              />
-              {encPassphrase && encConfirm && encPassphrase !== encConfirm && (
-                <div className="error-msg">
-                  <AlertCircle size={14} /> Passphrases do not match
-                </div>
+        <main>
+          {activeTab === 'encrypt' && (
+            <div className="tab-content">
+              <div className="form-group">
+                <label>Access Passphrase</label>
+                <input
+                  type="password"
+                  value={encPassphrase}
+                  onChange={(e) => setEncPassphrase(e.target.value)}
+                  placeholder="Enter passphrase..."
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Confirm Passphrase</label>
+                <input
+                  type="password"
+                  value={encConfirm}
+                  onChange={(e) => setEncConfirm(e.target.value)}
+                  placeholder="Re-enter passphrase..."
+                />
+                {encPassphrase && encConfirm && encPassphrase !== encConfirm && (
+                  <div className="error-msg">Passphrases do not match</div>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label>Plaintext Letter</label>
+                <textarea
+                  value={encMessage}
+                  onChange={(e) => setEncMessage(e.target.value)}
+                  placeholder="Type or paste text here..."
+                />
+              </div>
+
+              <div className="button-group">
+                <button 
+                  className="btn-primary" 
+                  onClick={handleEncrypt}
+                  disabled={isProcessing || !encPassphrase || !encConfirm || !encMessage || (encPassphrase !== encConfirm)}
+                >
+                  {isProcessing ? 'PROCESSING...' : 'ENCRYPT TEXT'}
+                </button>
+                <button 
+                  className="btn-secondary" 
+                  onClick={handleClear}
+                >
+                  CLEAR
+                </button>
+              </div>
+
+              {encError && (
+                <div className="error-msg">{encError}</div>
               )}
-            </div>
 
-            <div className="form-group">
-              <label>Message</label>
-              <textarea
-                value={encMessage}
-                onChange={(e) => setEncMessage(e.target.value)}
-                placeholder="Type or paste the message to encrypt..."
-              />
-            </div>
-
-            <button 
-              className="btn-primary" 
-              onClick={handleEncrypt}
-              disabled={isProcessing || !encPassphrase || !encConfirm || !encMessage || (encPassphrase !== encConfirm)}
-            >
-              <Lock size={18} />
-              {isProcessing ? 'Encrypting...' : 'Encrypt Text'}
-            </button>
-
-            {encError && (
-              <div className="error-msg" style={{marginTop: '1rem'}}>
-                <AlertCircle size={16} /> {encError}
-              </div>
-            )}
-
-            {encResult && (
               <div className="result-container">
                 <div className="result-header">
-                  <span className="result-title">Encrypted Output</span>
-                  <button className="btn-icon" onClick={() => handleCopy(encResult)}>
-                    {copied ? <span className="success-msg"><Check size={16} /> Copied</span> : <><Copy size={16} /> Copy</>}
-                  </button>
+                  <label>Result</label>
+                  {encResult && (
+                    <button className="copy-btn" onClick={() => handleCopy(encResult)}>
+                      {copied ? 'COPIED' : 'COPY'}
+                    </button>
+                  )}
                 </div>
                 <div className="result-content">
-                  {encResult}
+                  {encResult ? encResult : <span className="result-placeholder">awaiting input</span>}
                 </div>
               </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'decrypt' && (
-          <div className="tab-content">
-            <div className="form-group">
-              <label>Passphrase</label>
-              <input
-                type="password"
-                value={decPassphrase}
-                onChange={(e) => setDecPassphrase(e.target.value)}
-                placeholder="Enter passphrase"
-              />
             </div>
+          )}
 
-            <div className="form-group">
-              <label>Encrypted Message</label>
-              <textarea
-                value={decMessage}
-                onChange={(e) => setDecMessage(e.target.value)}
-                placeholder="Paste the FL2601 message block here..."
-              />
-            </div>
-
-            <button 
-              className="btn-primary" 
-              onClick={handleDecrypt}
-              disabled={isProcessing || !decPassphrase || !decMessage}
-            >
-              <Unlock size={18} />
-              {isProcessing ? 'Decrypting...' : 'Decrypt Text'}
-            </button>
-
-            {decError && (
-              <div className="error-msg" style={{marginTop: '1rem'}}>
-                <AlertCircle size={16} /> {decError}
+          {activeTab === 'decrypt' && (
+            <div className="tab-content">
+              <div className="form-group">
+                <label>Access Passphrase</label>
+                <input
+                  type="password"
+                  value={decPassphrase}
+                  onChange={(e) => setDecPassphrase(e.target.value)}
+                  placeholder="Enter passphrase..."
+                />
               </div>
-            )}
 
-            {decResult && (
+              <div className="form-group">
+                <label>Ciphertext Letter</label>
+                <textarea
+                  value={decMessage}
+                  onChange={(e) => setDecMessage(e.target.value)}
+                  placeholder="Paste the FL2601 message block here..."
+                />
+              </div>
+
+              <div className="button-group">
+                <button 
+                  className="btn-primary" 
+                  onClick={handleDecrypt}
+                  disabled={isProcessing || !decPassphrase || !decMessage}
+                >
+                  {isProcessing ? 'PROCESSING...' : 'DECRYPT TEXT'}
+                </button>
+                <button 
+                  className="btn-secondary" 
+                  onClick={handleClear}
+                >
+                  CLEAR
+                </button>
+              </div>
+
+              {decError && (
+                <div className="error-msg">{decError}</div>
+              )}
+
               <div className="result-container">
                 <div className="result-header">
-                  <span className="result-title">Decrypted Message</span>
-                  <button className="btn-icon" onClick={() => handleCopy(decResult)}>
-                    {copied ? <span className="success-msg"><Check size={16} /> Copied</span> : <><Copy size={16} /> Copy</>}
-                  </button>
+                  <label>Result</label>
+                  {decResult && (
+                    <button className="copy-btn" onClick={() => handleCopy(decResult)}>
+                      {copied ? 'COPIED' : 'COPY'}
+                    </button>
+                  )}
                 </div>
                 <div className="result-content">
-                  {decResult}
+                  {decResult ? decResult : <span className="result-placeholder">awaiting input</span>}
                 </div>
               </div>
-            )}
-          </div>
-        )}
-      </main>
-      
-      {/* Keyboard shortcuts hints could go here, but omitted for clean mobile view */}
+            </div>
+          )}
+        </main>
+        
+        <footer>
+          This tool uses PBKDF2 for key derivation (600,000 iterations, SHA-256) and AES-256-GCM for encryption.
+        </footer>
+      </div>
     </div>
   );
 }
