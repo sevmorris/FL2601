@@ -11,6 +11,8 @@
   <a href="https://sevmorris.github.io/FL2601/">Theory of Operation</a>
   ·
   <a href="https://github.com/sevmorris/FL2601-Windows">Windows Version</a>
+  ·
+  <a href="https://sevmorris.github.io/FL2601/web/">Web Version</a>
 </p>
 
 A small macOS app that encrypts text with a passphrase. Paste in a message,
@@ -35,8 +37,10 @@ window, and out through the clipboard.
 Requires macOS 15.0 or later. Universal — Apple silicon and Intel.
 
 There is a [Windows port](https://github.com/sevmorris/FL2601-Windows) for
-Windows 10 and later. Messages are byte-for-byte compatible between the two: a
-message encrypted on one platform decrypts on the other without conversion.
+Windows 10 and later, and a [Web version](https://sevmorris.github.io/FL2601/web/)
+that runs entirely in your browser using the Web Crypto API. Messages are
+byte-for-byte compatible across all platforms: a message encrypted on one
+platform decrypts on the others without conversion.
 
 ## Install
 
