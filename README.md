@@ -56,7 +56,7 @@ The app does not check for updates — it has no network entitlement and cannot.
 Installing through Homebrew means `brew upgrade` picks up new versions along
 with everything else.
 
-To build it yourself instead, see [Building](#building) below.
+To build it yourself instead, see [Building](#building-and-verifying) below.
 
 ## Using it
 
