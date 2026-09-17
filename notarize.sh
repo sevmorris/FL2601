@@ -10,7 +10,7 @@
 # One-time setup (this stores an app-specific password in your keychain, so
 # run it yourself - it prompts for the password interactively):
 #
-#   xcrun notarytool store-credentials "FL2601" \
+#   xcrun notarytool store-credentials "notarytool" \
 #       --apple-id "$APPLE_ID" \
 #       --team-id "$TEAM_ID"
 #
@@ -23,7 +23,7 @@
 #
 set -euo pipefail
 
-NOTARY_PROFILE="${NOTARY_PROFILE:-FL2601}"
+NOTARY_PROFILE="${NOTARY_PROFILE:-notarytool}"
 APPLE_ID="${APPLE_ID:-your-apple-id@example.com}"
 TEAM_ID="${TEAM_ID:-T9RLNAXPWU}"
 
